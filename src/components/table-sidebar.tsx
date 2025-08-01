@@ -19,9 +19,9 @@ export function TableSidebar({ tables, selectedTable, onTableSelect }: TableSide
   );
 
   return (
-    <div className="w-80 bg-card border-r border-border flex flex-col h-full">
-      <div className="p-4 border-b border-border">
-        <div className="flex items-center space-x-2 mb-4">
+    <div className="bg-card border-r border-border flex flex-col h-full">
+      <div className="p-2 border-b border-border">
+        <div className="flex items-center space-x-2 mb-2">
           <Database className="h-5 w-5 text-primary" />
           <h2 className="text-lg font-semibold text-foreground">Tables</h2>
           <span className="text-sm text-muted-foreground">({tables.length})</span>

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LogOut, Database, BarChart3 } from 'lucide-react';
 import { KdbTable, KdbQueryResult } from '@/types/kdb';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 
 interface DashboardPageProps {
   connectionData: { host: string; port: number };
@@ -84,7 +85,7 @@ export function DashboardPage({
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Header */}
-      <header className="bg-card border-b border-border px-6 py-4">
+      <header className="bg-card border-b border-border px-6 py-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
@@ -125,27 +126,36 @@ export function DashboardPage({
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar */}
-        <TableSidebar
-          tables={tables}
-          selectedTable={selectedTable}
-          onTableSelect={handleTableSelect}
-        />
-
-        {/* Main Content Area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Virtual Data Grid with Client-Side Pagination */}
-          <VirtualDataGrid
-            data={currentData}
-            isLoading={isLoading}
-            onPageChange={selectedTable ? handlePageChange : undefined}
-            currentPage={currentPage}
-            pageSize={pageSize}
-            totalRows={totalRows}
-            clientSidePagination={!selectedTable} // Use client-side for queries, server-side for tables
-          />
-        </div>
+      <div className="flex-1 overflow-hidden">
+        <PanelGroup direction="horizontal" className="h-full">
+          {/* Left Sidebar Panel */}
+          <Panel defaultSize={20} minSize={15} maxSize={40}>
+            <TableSidebar
+              tables={tables}
+              selectedTable={selectedTable}
+              onTableSelect={handleTableSelect}
+            />
+          </Panel>
+          
+          {/* Resize Handle */}
+          <PanelResizeHandle className="w-1 bg-border hover:bg-primary/20 transition-colors" />
+          
+          {/* Main Content Panel */}
+          <Panel defaultSize={80}>
+            <div className="h-full flex flex-col overflow-hidden">
+              {/* Virtual Data Grid with Client-Side Pagination */}
+              <VirtualDataGrid
+                data={currentData}
+                isLoading={isLoading}
+                onPageChange={selectedTable ? handlePageChange : undefined}
+                currentPage={currentPage}
+                pageSize={pageSize}
+                totalRows={totalRows}
+                clientSidePagination={!selectedTable} // Use client-side for queries, server-side for tables
+              />
+            </div>
+          </Panel>
+        </PanelGroup>
       </div>
 
       {/* Chart Modal */}

@@ -161,14 +161,9 @@ const convertKdbValue = (value) => {
     if (!isFinite(value)) return value > 0 ? 'Infinity' : '-Infinity';
   }
   
-  // Handle dates/times - KDB+ returns numeric values that need conversion
-  if (typeof value === 'number' && value > 946684800000) {
-    // Might be a timestamp - convert to ISO string for display
-    try {
-      return new Date(value).toISOString();
-    } catch {
-      return value;
-    }
+  // Handle KDB+ timestamps (if it's already a Date object)
+  if (value instanceof Date) {
+    return value.toISOString();
   }
   
   // Handle strings with potential encoding issues
@@ -176,6 +171,7 @@ const convertKdbValue = (value) => {
     return value.toString();
   }
   
+  // For all other values, return as-is
   return value;
 };
 
