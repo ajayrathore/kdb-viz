@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { TableSidebar } from '@/components/table-sidebar';
-import { DataGrid } from '@/components/data-grid';
-import { QueryExecutor } from '@/components/query-executor';
+import { VirtualDataGrid } from '@/components/virtual-data-grid';
+import { QueryExecutorSimple } from '@/components/query-executor-simple';
 import { ChartModal } from '@/components/chart-modal-plotly';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -119,7 +119,7 @@ export function DashboardPage({
       </header>
 
       {/* Query Executor */}
-      <QueryExecutor
+      <QueryExecutorSimple
         onExecuteQuery={handleExecuteQuery}
         isExecuting={isExecuting}
       />
@@ -135,14 +135,15 @@ export function DashboardPage({
 
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Data Grid */}
-          <DataGrid
+          {/* Virtual Data Grid with Client-Side Pagination */}
+          <VirtualDataGrid
             data={currentData}
             isLoading={isLoading}
-            onPageChange={handlePageChange}
+            onPageChange={selectedTable ? handlePageChange : undefined}
             currentPage={currentPage}
             pageSize={pageSize}
             totalRows={totalRows}
+            clientSidePagination={!selectedTable} // Use client-side for queries, server-side for tables
           />
         </div>
       </div>

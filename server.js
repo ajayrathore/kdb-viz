@@ -394,7 +394,7 @@ app.get('/api/tables/:tableName/data', async (req, res) => {
   }
 });
 
-// Execute query endpoint
+// Execute query endpoint - simplified version
 app.post('/api/query', async (req, res) => {
   const { query } = req.body;
   
