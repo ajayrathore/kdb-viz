@@ -58,6 +58,35 @@
   }
 }
 
+@layer components {
+  /* Table column resizing styles */
+  .resizer {
+    @apply absolute right-0 top-0 h-full w-1 cursor-col-resize select-none touch-none;
+    @apply hover:bg-primary/50 transition-colors;
+  }
+  
+  .resizer.isResizing {
+    @apply bg-primary;
+  }
+  
+  /* Ensure table cells don't overflow during resize */
+  table {
+    table-layout: fixed;
+  }
+  
+  td, th {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  /* Better visual feedback for column borders */
+  th:not(:last-child),
+  td:not(:last-child) {
+    @apply border-r border-border;
+  }
+}
+
 @layer utilities {
   /* Custom scrollbar styles */
   .scrollbar-thin {
