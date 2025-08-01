@@ -1,8 +1,16 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Plotly from 'plotly.js-dist-min';
-import { X, BarChart3, LineChart, TrendingUp, Settings, Maximize2 } from 'lucide-react';
+import { X, BarChart3, LineChart, TrendingUp, Settings, Maximize2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { KdbQueryResult, ChartConfig } from '@/types/kdb';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface ChartModalProps {
   isOpen: boolean;
@@ -17,6 +25,7 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
     type: 'bar',
     xColumn: '',
     yColumn: '',
+    yColumns: [],
     title: 'Data Visualization'
   });
   const [showSettings, setShowSettings] = useState(false);
@@ -39,13 +48,15 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
       setChartConfig(prev => ({
         ...prev,
         xColumn: numericColumns[0],
-        yColumn: numericColumns[1]
+        yColumn: numericColumns[1],
+        yColumns: [numericColumns[1]]
       }));
     } else if (isOpen && numericColumns.length === 1 && categoricalColumns.length >= 1) {
       setChartConfig(prev => ({
         ...prev,
         xColumn: categoricalColumns[0],
-        yColumn: numericColumns[0]
+        yColumn: numericColumns[0],
+        yColumns: [numericColumns[0]]
       }));
     }
   }, [isOpen, data]);
@@ -87,21 +98,26 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
 
   // Generate Plotly.js chart
   useEffect(() => {
-    if (!chartRef.current || !chartConfig.xColumn || !chartConfig.yColumn || !isOpen) return;
+    if (!chartRef.current || !chartConfig.xColumn || chartConfig.yColumns.length === 0 || !isOpen) return;
 
     try {
+      // Color palette for multiple series
+      const colors = [
+        '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6',
+        '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#84cc16',
+        '#06b6d4', '#a855f7', '#facc15', '#22c55e', '#f43f5e'
+      ];
+
       // Prepare data for plotting
       const xColumnIndex = data.columns.indexOf(chartConfig.xColumn);
-      const yColumnIndex = data.columns.indexOf(chartConfig.yColumn);
-      
-      if (xColumnIndex === -1 || yColumnIndex === -1) return;
+      if (xColumnIndex === -1) return;
 
-      const plotData = data.data.map(row => ({
-        x: row[xColumnIndex],
-        y: row[yColumnIndex]
-      })).filter(d => d.x != null && d.y != null);
-
-      if (plotData.length === 0) return;
+      // Check if any data exists
+      const hasData = chartConfig.yColumns.some(yCol => {
+        const yIdx = data.columns.indexOf(yCol);
+        return yIdx !== -1 && data.data.some(row => row[xColumnIndex] != null && row[yIdx] != null);
+      });
+      if (!hasData) return;
 
       // Helper function to detect if data is time-based
       const isTimeData = (value: any) => {
@@ -112,56 +128,73 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
         return value instanceof Date;
       };
 
-      const xIsTime = plotData.length > 0 && isTimeData(plotData[0].x);
+      const xIsTime = data.data.length > 0 && isTimeData(data.data[0][xColumnIndex]);
       
       // Get target tick count from our calculation
       const targetTicks = filteredTickValues && filteredTickValues.length > 0 
         ? parseInt(filteredTickValues[0]) 
         : 8;
 
-      // Prepare data arrays for Plotly
-      const xData = plotData.map(d => d.x);
-      const yData = plotData.map(d => d.y);
+      // Prepare traces for each Y column
+      const traces: any[] = [];
+      
+      chartConfig.yColumns.forEach((yColumn, index) => {
+        const yColumnIndex = data.columns.indexOf(yColumn);
+        if (yColumnIndex === -1) return;
+        
+        const seriesData = data.data
+          .map(row => ({ x: row[xColumnIndex], y: row[yColumnIndex] }))
+          .filter(d => d.x != null && d.y != null);
+        
+        if (seriesData.length === 0) return;
+        
+        const xData = seriesData.map(d => d.x);
+        const yData = seriesData.map(d => d.y);
+        const color = colors[index % colors.length];
+        
+        traces.push({
+          x: xData,
+          y: yData,
+          name: yColumn,
+          line: { color: color, width: 2 },
+          marker: { color: color, size: 6 }
+        });
+      });
+      
+      if (traces.length === 0) return;
 
-      // Define chart trace based on type
-      let trace: any = {
-        x: xData,
-        y: yData,
-        name: `${chartConfig.yColumn} vs ${chartConfig.xColumn}`,
-        line: { color: '#3b82f6', width: 2 },
-        marker: { color: '#3b82f6', size: 6 }
-      };
-
-      // Chart type-specific configuration
-      switch (chartConfig.type) {
-        case 'line':
-          trace.type = 'scatter';
-          trace.mode = 'lines+markers';
-          break;
-        case 'bar':
-          trace.type = 'bar';
-          delete trace.line;
-          break;
-        case 'scatter':
-          trace.type = 'scatter';
-          trace.mode = 'markers';
-          delete trace.line;
-          break;
-        case 'histogram':
-          trace = {
-            x: xData,
-            type: 'histogram',
-            marker: { color: '#3b82f6' },
-            name: chartConfig.xColumn
-          };
-          break;
-        case 'area':
-          trace.type = 'scatter';
-          trace.mode = 'lines';
-          trace.fill = 'tonexty';
-          trace.fillcolor = 'rgba(59, 130, 246, 0.3)';
-          break;
-      }
+      // Chart type-specific configuration for all traces
+      traces.forEach((trace, index) => {
+        switch (chartConfig.type) {
+          case 'line':
+            trace.type = 'scatter';
+            trace.mode = 'lines+markers';
+            break;
+          case 'bar':
+            trace.type = 'bar';
+            delete trace.line;
+            break;
+          case 'scatter':
+            trace.type = 'scatter';
+            trace.mode = 'markers';
+            delete trace.line;
+            break;
+          case 'histogram':
+            // For histogram, we need to handle differently
+            trace.type = 'histogram';
+            trace.histnorm = '';
+            trace.opacity = 0.7;
+            delete trace.y;
+            delete trace.line;
+            break;
+          case 'area':
+            trace.type = 'scatter';
+            trace.mode = 'lines';
+            trace.fill = index === 0 ? 'tozeroy' : 'tonexty';
+            trace.fillcolor = trace.line.color.replace(')', ', 0.3)').replace('rgb', 'rgba');
+            break;
+        }
+      });
 
       // Layout configuration with proper axis control
       const layout: any = {
@@ -184,11 +217,23 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
           automargin: true
         },
         yaxis: {
-          title: chartConfig.yColumn,
+          title: chartConfig.yColumns.length > 1 ? 'Values' : chartConfig.yColumns[0] || '',
           color: 'hsl(var(--foreground))',
           showgrid: false,
           automargin: true
-        }
+        },
+        showlegend: chartConfig.yColumns.length > 1,
+        legend: {
+          orientation: 'v',
+          x: 1.02,
+          y: 1,
+          xanchor: 'left',
+          yanchor: 'top',
+          bgcolor: 'rgba(0,0,0,0)',
+          bordercolor: 'hsl(var(--border))',
+          borderwidth: 1
+        },
+        barmode: chartConfig.type === 'bar' ? 'group' : undefined
       };
 
       // Time-specific axis configuration
@@ -204,8 +249,8 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
         staticPlot: false
       };
 
-      // Clear and create new plot
-      Plotly.newPlot(chartRef.current, [trace], layout, config);
+      // Clear and create new plot with all traces
+      Plotly.newPlot(chartRef.current, traces, layout, config);
 
     } catch (error) {
       console.error('Error creating Plotly visualization:', error);
@@ -349,19 +394,60 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
                 </select>
               </div>
 
-              {/* Y-Axis */}
+              {/* Y-Axis Multi-Select */}
               <div>
                 <label className="text-sm font-medium mb-3 block text-foreground">Y-Axis</label>
-                <select
-                  value={chartConfig.yColumn}
-                  onChange={(e) => setChartConfig(prev => ({ ...prev, yColumn: e.target.value }))}
-                  className="w-full px-3 py-2 border border-border rounded-md text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                >
-                  <option value="">Select column</option>
-                  {data.columns.map(column => (
-                    <option key={column} value={column}>{column}</option>
-                  ))}
-                </select>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="w-full px-3 py-2 border border-border rounded-md text-sm bg-background text-foreground text-left hover:bg-accent hover:border-accent-foreground/20 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent flex items-center justify-between">
+                      <span className="truncate">
+                        {chartConfig.yColumns.length === 0 
+                          ? "Select columns" 
+                          : chartConfig.yColumns.length === 1 
+                          ? chartConfig.yColumns[0] 
+                          : `${chartConfig.yColumns.length} columns selected`}
+                      </span>
+                      <Check className="h-4 w-4 opacity-50" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56 max-h-64 overflow-y-auto">
+                    <DropdownMenuLabel>Select Y-Axis Columns</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuCheckboxItem
+                      checked={chartConfig.yColumns.length === numericColumns.length && numericColumns.length > 0}
+                      onCheckedChange={(checked) => {
+                        setChartConfig(prev => ({
+                          ...prev,
+                          yColumns: checked ? [...numericColumns] : [],
+                          yColumn: checked && numericColumns.length > 0 ? numericColumns[0] : ''
+                        }));
+                      }}
+                    >
+                      Select All
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuSeparator />
+                    {numericColumns.map(column => (
+                      <DropdownMenuCheckboxItem
+                        key={column}
+                        checked={chartConfig.yColumns.includes(column)}
+                        onCheckedChange={(checked) => {
+                          setChartConfig(prev => {
+                            const newColumns = checked 
+                              ? [...prev.yColumns, column]
+                              : prev.yColumns.filter(c => c !== column);
+                            return {
+                              ...prev,
+                              yColumns: newColumns,
+                              yColumn: newColumns.length > 0 ? newColumns[0] : ''
+                            };
+                          });
+                        }}
+                      >
+                        {column}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
 
               {/* Chart Title */}
@@ -381,7 +467,7 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
 
         {/* Chart Container */}
         <div className="flex-1 flex items-center justify-center p-8 overflow-auto">
-          {!chartConfig.xColumn || !chartConfig.yColumn ? (
+          {!chartConfig.xColumn || chartConfig.yColumns.length === 0 ? (
             <div className="text-center text-muted-foreground">
               <BarChart3 className="h-16 w-16 mx-auto mb-4 opacity-50" />
               <p className="text-xl mb-2">Select columns to create a visualization</p>

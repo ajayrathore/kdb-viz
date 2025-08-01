@@ -16,6 +16,7 @@ export function VisualizationPanel({ data, isExpanded = false }: VisualizationPa
     type: 'bar',
     xColumn: '',
     yColumn: '',
+    yColumns: [],
     title: 'Data Visualization'
   });
   const [showSettings, setShowSettings] = useState(true);

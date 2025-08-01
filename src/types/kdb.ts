@@ -38,7 +38,8 @@ export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'er
 export interface ChartConfig {
   type: 'line' | 'bar' | 'scatter' | 'histogram' | 'area';
   xColumn: string;
-  yColumn: string;
+  yColumn: string;  // Keep for backward compatibility
+  yColumns: string[];  // New: support multiple Y columns
   colorColumn?: string;
   title?: string;
 }
