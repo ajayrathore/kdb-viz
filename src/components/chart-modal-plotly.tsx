@@ -19,7 +19,7 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
     yColumn: '',
     title: 'Data Visualization'
   });
-  const [showSettings, setShowSettings] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
   const [chartDimensions, setChartDimensions] = useState({ width: 1200, height: 700 });
   const [isResizing, setIsResizing] = useState(false);
   const [filteredTickValues, setFilteredTickValues] = useState<string[] | null>(null);
@@ -60,7 +60,7 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
     // Calculate target number of ticks based on chart width
     // For rotated labels, we need more space between them
     const labelSpaceNeeded = 100; // pixels per rotated label
-    const targetTicks = Math.min(10, Math.max(5, Math.floor(chartDimensions.width / labelSpaceNeeded)));
+    const targetTicks = Math.min(15, Math.max(5, Math.floor(chartDimensions.width / labelSpaceNeeded)));
     
     // Store the target tick count (we'll use this in Plotly config)
     setFilteredTickValues([targetTicks.toString()]);
@@ -407,15 +407,6 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
                 title="Drag to resize chart"
               >
                 <Maximize2 className="h-3 w-3 text-primary rotate-90" />
-              </div>
-              {/* Chart dimensions indicator */}
-              <div className="absolute top-2 left-2 bg-background/80 backdrop-blur-sm px-2 py-1 rounded text-xs text-muted-foreground border border-border">
-                <div>{chartDimensions.width} × {chartDimensions.height}</div>
-                {filteredTickValues && (
-                  <div className="text-xs opacity-75">
-                    Target Ticks: {filteredTickValues[0]}
-                  </div>
-                )}
               </div>
             </div>
           )}
