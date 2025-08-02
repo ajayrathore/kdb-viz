@@ -171,7 +171,7 @@ export function DashboardPage({
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Header */}
-      <header className="bg-card border-b border-border px-4 py-1">
+      <header className="app-header px-4 py-1">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="flex items-center space-x-2">

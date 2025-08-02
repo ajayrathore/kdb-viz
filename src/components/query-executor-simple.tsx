@@ -460,7 +460,7 @@ export function QueryExecutorSimple({ onExecuteQuery, isExecuting }: QueryExecut
 
 
   return (
-    <div className="bg-card border-b border-border p-2">
+    <div className="query-executor-section p-2">
       {/* Tab Headers */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center space-x-2">
@@ -501,8 +501,8 @@ export function QueryExecutorSimple({ onExecuteQuery, isExecuting }: QueryExecut
               key={tab.id}
               className={`flex items-center space-x-1 px-2 py-1 rounded text-sm cursor-pointer group relative min-w-0 ${
                 tab.id === activeTabId
-                  ? 'bg-background border border-border'
-                  : 'hover:bg-accent'
+                  ? 'query-tab-active'
+                  : 'query-tab-inactive'
               }`}
               onClick={() => switchToTab(tab.id)}
             >
@@ -567,7 +567,7 @@ export function QueryExecutorSimple({ onExecuteQuery, isExecuting }: QueryExecut
             onDragOver={handleDragOverEvent}
             onDrop={handleDropEvent}
             placeholder="Enter your q query here... (Ctrl/Cmd + O to load file, Ctrl/Cmd + S to save, drag & drop .q files)"
-            className="w-full min-h-20 max-h-[80vh] px-3 py-2 border border-border rounded-md overflow-x-auto whitespace-pre focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-mono text-sm bg-background text-foreground transition-colors"
+            className="query-editor w-full min-h-20 max-h-[80vh] px-3 py-2 rounded-md overflow-x-auto whitespace-pre focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-mono text-sm text-foreground transition-colors enhanced-scrollbar"
             disabled={isExecuting || !activeTab}
             style={{ resize: 'both' }}
           />

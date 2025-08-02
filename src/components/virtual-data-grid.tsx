@@ -11,7 +11,7 @@ import {
   type ColumnDef,
   ColumnResizeMode,
 } from '@tanstack/react-table';
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Search, Database, Loader2, BarChart3, Download, Settings, GripVertical, PanelLeft } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ChevronsUp, ChevronsDown, Search, Database, Loader2, BarChart3, Download, Settings, GripVertical, PanelLeft, Home, MoveDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ColumnManagementModal } from '@/components/column-management-modal';
@@ -356,6 +356,70 @@ export function VirtualDataGrid({
   
   const currentDisplayPage = clientSidePagination ? clientPage : currentPage;
 
+  // Navigation helper functions
+  const scrollToTop = () => {
+    if (rows.length > 0) {
+      rowVirtualizer.scrollToIndex(0, { align: 'start' });
+    }
+  };
+
+  const scrollToBottom = () => {
+    if (rows.length > 0) {
+      rowVirtualizer.scrollToIndex(rows.length - 1, { align: 'end' });
+    }
+  };
+
+  const calculateVisibleRows = () => {
+    if (!tableContainerRef.current) return 10; // fallback
+    const containerHeight = tableContainerRef.current.clientHeight;
+    const estimatedRowHeight = 40; // matches the virtualizer estimateSize
+    return Math.floor(containerHeight / estimatedRowHeight) - 2; // -2 for padding
+  };
+
+  const scrollPageUp = () => {
+    const visibleRows = calculateVisibleRows();
+    const currentTopIndex = virtualRows.length > 0 ? virtualRows[0].index : 0;
+    const targetIndex = Math.max(0, currentTopIndex - visibleRows);
+    rowVirtualizer.scrollToIndex(targetIndex, { align: 'start' });
+  };
+
+  const scrollPageDown = () => {
+    const visibleRows = calculateVisibleRows();
+    const currentTopIndex = virtualRows.length > 0 ? virtualRows[0].index : 0;
+    const targetIndex = Math.min(rows.length - 1, currentTopIndex + visibleRows);
+    rowVirtualizer.scrollToIndex(targetIndex, { align: 'start' });
+  };
+
+  // Keyboard event handler
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Only handle navigation keys when the table container is focused
+    switch (e.key) {
+      case 'Home':
+        e.preventDefault();
+        scrollToTop();
+        break;
+      case 'End':
+        e.preventDefault();
+        scrollToBottom();
+        break;
+      case 'PageUp':
+        e.preventDefault();
+        scrollPageUp();
+        break;
+      case 'PageDown':
+        e.preventDefault();
+        scrollPageDown();
+        break;
+      default:
+        break;
+    }
+  };
+
+  // Check if we're at top or bottom for button states
+  const isAtTop = virtualRows.length > 0 ? virtualRows[0].index === 0 : true;
+  const isAtBottom = virtualRows.length > 0 ? 
+    virtualRows[virtualRows.length - 1].index >= rows.length - 1 : true;
+
   if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -385,9 +449,9 @@ export function VirtualDataGrid({
   }
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="data-grid-container flex-1 flex flex-col">
       {/* Search and Info Bar */}
-      <div className="p-2 border-b border-border bg-card">
+      <div className="card-header-enhanced p-2 border-b border-border">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <div className="relative">
@@ -427,6 +491,44 @@ export function VirtualDataGrid({
                   >
                     <PanelLeft className="h-4 w-4" />
                   </button>
+                )}
+                
+                {/* Navigation Controls */}
+                {hasData && rows.length > 10 && (
+                  <div className="flex items-center space-x-1 border-r border-border pr-2 mr-2">
+                    <button
+                      onClick={scrollToTop}
+                      disabled={isAtTop}
+                      className="nav-button btn-financial-secondary p-1.5 rounded"
+                      title="Go to beginning (Home key)"
+                    >
+                      <Home className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={scrollPageUp}
+                      disabled={isAtTop}
+                      className="nav-button btn-financial-secondary p-1.5 rounded"
+                      title="Page up (Page Up key)"
+                    >
+                      <ChevronsUp className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={scrollPageDown}
+                      disabled={isAtBottom}
+                      className="nav-button btn-financial-secondary p-1.5 rounded"
+                      title="Page down (Page Down key)"
+                    >
+                      <ChevronsDown className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={scrollToBottom}
+                      disabled={isAtBottom}
+                      className="nav-button btn-financial-secondary p-1.5 rounded"
+                      title="Go to end (End key)"
+                    >
+                      <MoveDown className="h-4 w-4" />
+                    </button>
+                  </div>
                 )}
                 
                 {hasData && (
@@ -547,18 +649,22 @@ export function VirtualDataGrid({
       {/* Virtual Scrolling Container */}
       <div 
         ref={tableContainerRef}
-        className="flex-1 overflow-auto relative"
+        className="flex-1 overflow-auto relative enhanced-scrollbar focus:outline-none focus:ring-2 focus:ring-primary/50"
         style={{ maxHeight: 'calc(100vh - 250px)' }}
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+        role="grid"
+        aria-label="Data table with keyboard navigation"
       >
         <table className="w-full table-fixed" style={{ width: table.getTotalSize() }}>
           {/* Sticky Header */}
-          <thead className="sticky top-0 z-10 bg-muted/95 backdrop-blur-sm">
+          <thead className="data-table-header sticky top-0 z-10 backdrop-blur-sm">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
-                    className="relative px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider border-b border-r border-border"
+                    className="data-table-cell relative px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
                     style={{ width: header.column.getSize() }}
                   >
                     {header.isPlaceholder ? null : (
@@ -615,15 +721,13 @@ export function VirtualDataGrid({
               return (
                 <tr
                   key={row.id}
-                  className={`hover:bg-muted/50 transition-colors ${
-                    virtualRow.index % 2 === 0 ? 'bg-background' : 'bg-muted/20'
-                  }`}
+                  className="data-table-row transition-colors"
                   style={{ height: `${virtualRow.size}px` }}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <td
                       key={cell.id}
-                      className="px-4 py-2 text-sm text-foreground border-r border-border"
+                      className="data-table-cell px-4 py-2 text-sm text-foreground"
                       style={{ width: cell.column.getSize() }}
                     >
                       <div className="truncate" title={String(cell.getValue())}>

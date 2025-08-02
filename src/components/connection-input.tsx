@@ -78,13 +78,13 @@ export function ConnectionInput({
   const getStatusIcon = () => {
     switch (connectionStatus) {
       case 'connected':
-        return <PlugZap className="h-4 w-4 text-green-500" />;
+        return <PlugZap className="h-4 w-4 status-connected" />;
       case 'connecting':
-        return <Loader2 className="h-4 w-4 animate-spin text-yellow-500" />;
+        return <Loader2 className="h-4 w-4 animate-spin status-connecting" />;
       case 'error':
-        return <AlertCircle className="h-4 w-4 text-red-500" />;
+        return <AlertCircle className="h-4 w-4 status-error" />;
       default:
-        return <Plug className="h-4 w-4 text-muted-foreground" />;
+        return <Plug className="h-4 w-4 status-inactive" />;
     }
   };
 
@@ -103,9 +103,17 @@ export function ConnectionInput({
 
   return (
     <div className="flex items-center space-x-3">
-      <div className="flex items-center space-x-2">
+      <div className={`flex items-center space-x-2 px-2 py-1 rounded-md ${
+        connectionStatus === 'connected' ? 'status-indicator-bg-connected' :
+        connectionStatus === 'connecting' ? 'status-indicator-bg-connecting' :
+        connectionStatus === 'error' ? 'status-indicator-bg-error' : ''
+      }`}>
         {getStatusIcon()}
-        <span className="text-sm text-muted-foreground min-w-[80px]">
+        <span className={`text-sm font-medium min-w-[80px] ${
+          connectionStatus === 'connected' ? 'status-connected' :
+          connectionStatus === 'connecting' ? 'status-connecting' :
+          connectionStatus === 'error' ? 'status-error' : 'status-inactive'
+        }`}>
           {getStatusText()}
         </span>
       </div>
@@ -167,7 +175,7 @@ export function ConnectionInput({
       </div>
       
       {connectionError && connectionStatus === 'error' && (
-        <div className="text-sm text-red-500 max-w-xs truncate" title={connectionError}>
+        <div className="text-sm status-error max-w-xs truncate" title={connectionError}>
           {connectionError}
         </div>
       )}

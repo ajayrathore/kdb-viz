@@ -20,7 +20,7 @@ export function TableSidebar({ tables, selectedTable, onTableSelect, onToggleSid
   );
 
   return (
-    <div className="bg-card border-r border-border flex flex-col h-full">
+    <div className="app-sidebar flex flex-col h-full">
       <div className="p-2 border-b border-border">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center space-x-2">
@@ -61,10 +61,10 @@ export function TableSidebar({ tables, selectedTable, onTableSelect, onToggleSid
               <div
                 key={table.name}
                 className={`
-                  p-3 rounded-lg cursor-pointer transition-colors mb-2
+                  sidebar-item p-3 rounded-lg cursor-pointer transition-colors mb-2
                   ${selectedTable === table.name
                     ? 'bg-primary/10 border border-primary/20'
-                    : 'hover:bg-muted/50 border border-transparent'
+                    : 'border border-transparent'
                   }
                 `}
                 onClick={() => onTableSelect(table.name)}
