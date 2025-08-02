@@ -328,11 +328,8 @@ export function QueryExecutorSimple({ onExecuteQuery, isExecuting }: QueryExecut
           </div>
         )}
 
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <div>
-            Tip: Use Ctrl/Cmd + Enter or Ctrl/Cmd + E to execute queries. Separate multiple queries with semicolons.
-          </div>
-          {currentQueryInfo && (
+        {currentQueryInfo && (
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
             <div className="flex items-center space-x-2">
               {currentQueryInfo.selectedText ? (
                 <span className="text-primary font-medium">
@@ -344,8 +341,8 @@ export function QueryExecutorSimple({ onExecuteQuery, isExecuting }: QueryExecut
                 </span>
               )}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

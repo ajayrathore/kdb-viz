@@ -5,7 +5,7 @@ import { QueryExecutorSimple } from '@/components/query-executor-simple';
 import { ChartModal } from '@/components/chart-modal-plotly';
 import { ConnectionInput } from '@/components/connection-input';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { TrendingUp } from 'lucide-react';
+import { Database } from 'lucide-react';
 import { KdbTable, KdbQueryResult, ConnectionStatus } from '@/types/kdb';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 
@@ -140,7 +140,9 @@ export function DashboardPage({
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="flex items-center space-x-2">
-              <TrendingUp className="h-5 w-5 text-primary" />
+              <div className="icon-3d icon-3d-logo p-2 rounded-lg">
+                <Database className="h-5 w-5" />
+              </div>
               <h1 className="text-lg font-medium">KDB+ Visualizer</h1>
             </div>
             <ConnectionInput
