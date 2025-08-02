@@ -11,7 +11,7 @@ import {
   type ColumnDef,
   ColumnResizeMode,
 } from '@tanstack/react-table';
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Search, Database, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { KdbQueryResult } from '@/types/kdb';
@@ -156,7 +156,10 @@ export function VirtualDataGrid({
   if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
+          <p className="text-muted-foreground">Loading data...</p>
+        </div>
       </div>
     );
   }
@@ -165,8 +168,14 @@ export function VirtualDataGrid({
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground">
         <div className="text-center">
+          <Database className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
           <p className="text-lg mb-2">No data available</p>
-          <p className="text-sm">Select a table from the sidebar to view its data</p>
+          <p className="text-sm max-w-md">
+            {!data ? 
+              "Connect to a KDB+ server and select a table or execute a query to view data." :
+              "The selected table or query returned no results."
+            }
+          </p>
         </div>
       </div>
     );

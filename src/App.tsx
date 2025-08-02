@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { ConnectionPage } from '@/pages/connection-page'
 import { DashboardPage } from '@/pages/dashboard-page'
 import { useKdbConnection } from '@/hooks/use-kdb-connection'
 import { ThemeProvider } from '@/contexts/theme-context'
@@ -23,21 +22,16 @@ function App() {
 
   return (
     <ThemeProvider>
-      {status === 'connected' && connectionData ? (
-        <DashboardPage
-          connectionData={connectionData}
-          tables={tables}
-          onDisconnect={handleDisconnect}
-          executeQuery={executeQuery}
-          getTableData={getTableData}
-        />
-      ) : (
-        <ConnectionPage
-          onConnect={handleConnect}
-          isConnecting={status === 'connecting'}
-          error={error}
-        />
-      )}
+      <DashboardPage
+        connectionData={connectionData}
+        connectionStatus={status}
+        connectionError={error}
+        tables={tables}
+        onConnect={handleConnect}
+        onDisconnect={handleDisconnect}
+        executeQuery={executeQuery}
+        getTableData={getTableData}
+      />
     </ThemeProvider>
   )
 }
