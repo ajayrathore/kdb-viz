@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Play, Clock, AlertCircle, Code } from 'lucide-react';
+import { Clock, AlertCircle, Code } from 'lucide-react';
 import { KdbQueryResult } from '@/types/kdb';
 
 interface QueryExecutorSimpleProps {
@@ -265,43 +265,23 @@ export function QueryExecutorSimple({ onExecuteQuery, isExecuting }: QueryExecut
       </div>
 
       <div className="space-y-2">
-        <div className="flex space-x-2">
-          <div className="flex-1">
-            <textarea
-              ref={textareaRef}
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setTimeout(updateCurrentQueryInfo, 0); // Update after state change
-              }}
-              onKeyDown={handleKeyDown}
-              onKeyUp={handleCursorChange}
-              onClick={handleCursorChange}
-              onSelect={handleCursorChange}
-              placeholder="Enter your q query here... (Ctrl/Cmd + Enter or Ctrl/Cmd + E to execute)"
-              className="w-full min-h-20 max-h-60 px-3 py-2 border border-border rounded-md resize-y focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-mono text-sm bg-background text-foreground"
-              disabled={isExecuting}
-              style={{ resize: 'vertical' }}
-            />
-          </div>
-          
-          <Button
-            onClick={handleExecute}
-            disabled={!query.trim() || isExecuting}
-            className="px-6"
-          >
-            {isExecuting ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Running...
-              </>
-            ) : (
-              <>
-                <Play className="h-4 w-4 mr-2" />
-                Execute
-              </>
-            )}
-          </Button>
+        <div>
+          <textarea
+            ref={textareaRef}
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setTimeout(updateCurrentQueryInfo, 0); // Update after state change
+            }}
+            onKeyDown={handleKeyDown}
+            onKeyUp={handleCursorChange}
+            onClick={handleCursorChange}
+            onSelect={handleCursorChange}
+            placeholder="Enter your q query here... (Ctrl/Cmd + Enter or Ctrl/Cmd + E to execute)"
+            className="w-full min-h-20 max-h-[80vh] px-3 py-2 border border-border rounded-md overflow-x-auto whitespace-pre focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-mono text-sm bg-background text-foreground"
+            disabled={isExecuting}
+            style={{ resize: 'both' }}
+          />
         </div>
 
         {error && (
