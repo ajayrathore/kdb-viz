@@ -17,16 +17,19 @@ A modern, responsive web-based GUI for KDB+ database visualization and analysis.
 - **Dark/Light Modes**: System-aware theme switching
 
 ### 🗃️ **Database Management**
-- **Table Browser**: Navigate all tables in your KDB+ database
-- **Data Grid**: Paginated table viewing with virtual scrolling
-- **Query Executor**: Run custom KDB+ queries with syntax highlighting
+- **Table Browser**: Navigate all tables in your KDB+ database with search functionality
+- **Virtual Data Grid**: High-performance grid with virtual scrolling for large datasets
+- **Query Executor**: Run custom KDB+ queries with clean, simple interface
 - **Real-time Results**: Instant query execution and result display
+- **Column Management**: Show/hide and reorder columns dynamically
 
 ### 🎨 **User Experience**
-- **Modern UI**: Built with Tailwind CSS and Shadcn/ui components
+- **Modern UI**: Built with Tailwind CSS and custom UI components
 - **Full-screen Charts**: Expandable chart modals for detailed analysis
 - **Keyboard Shortcuts**: ESC to close modals, intuitive navigation
 - **Responsive Layout**: Works on desktop, tablet, and mobile devices
+- **Loading Animation**: Professional animated loading screen
+- **Resizable Panels**: Adjustable layout with react-resizable-panels
 
 ## 🚀 Quick Start
 
@@ -51,18 +54,22 @@ A modern, responsive web-based GUI for KDB+ database visualization and analysis.
 
 3. **Start the development servers**
 
-   **Terminal 1** - Frontend (React):
+   **Option 1** - Run both together:
    ```bash
-   npm run dev
+   npm run dev:full
    ```
 
-   **Terminal 2** - Backend API (Express):
+   **Option 2** - Run separately:
    ```bash
+   # Terminal 1: Frontend (React)
+   npm run dev
+
+   # Terminal 2: Backend API (Express)
    npm run server
    ```
 
 4. **Access the application**
-   - Frontend: http://localhost:3000
+   - Frontend: http://localhost:5173 (Vite default port)
    - API Server: http://localhost:3001
 
 ## 🔧 Configuration
@@ -84,7 +91,7 @@ API_PORT=3001
 KDB_DEFAULT_HOST=localhost
 KDB_DEFAULT_PORT=5000
 
-# Frontend Configuration
+# Frontend Configuration (optional - defaults work out of box)
 VITE_API_URL=http://localhost:3001
 ```
 
@@ -92,7 +99,7 @@ VITE_API_URL=http://localhost:3001
 
 ### 1. **Connecting to KDB+**
 
-1. Launch the application at http://localhost:3000
+1. Launch the application at http://localhost:5173
 2. Enter your KDB+ server details:
    - **Host**: Server hostname or IP address
    - **Port**: KDB+ server port number
@@ -148,6 +155,14 @@ select from trade where date=2024.01.15, time within 09:30:00 16:00:00
 | **Histogram** | Frequency distributions | Binned data frequency |
 | **Area** | Cumulative data, filled regions | Line chart with filled area |
 
+### 6. **Additional Features**
+
+- **Column Management**: Show/hide and reorder columns in the data grid
+- **Virtual Scrolling**: Efficiently handle large datasets with smooth scrolling
+- **Loading Animation**: Professional loading screen with KDB+ themed animation
+- **Resizable Panels**: Adjust the size of sidebar and main content areas
+- **Theme Persistence**: Theme preference saved to local storage
+
 ## 🏗️ Architecture
 
 ### Frontend Stack
@@ -155,9 +170,11 @@ select from trade where date=2024.01.15, time within 09:30:00 16:00:00
 - **TypeScript**: Type-safe development
 - **Vite**: Fast build tool and dev server
 - **Tailwind CSS**: Utility-first styling
-- **Shadcn/ui**: High-quality component library
 - **Plotly.js**: Interactive data visualization
-- **TanStack Table**: Virtual scrolling data grids
+- **TanStack Virtual**: Virtual scrolling for performance
+- **React Resizable Panels**: Flexible layout management
+- **Radix UI**: Accessible UI primitives (dropdown menu)
+- **Lucide React**: Modern icon library
 - **Zustand**: Lightweight state management
 
 ### Backend Stack
@@ -170,18 +187,50 @@ select from trade where date=2024.01.15, time within 09:30:00 16:00:00
 ```
 kdb-viz/
 ├── src/
-│   ├── components/          # React components
-│   │   ├── ui/             # Shadcn/ui components
+│   ├── components/              # React components
+│   │   ├── ui/                 # UI base components
+│   │   │   ├── button.tsx
+│   │   │   ├── card.tsx
+│   │   │   ├── dropdown-menu.tsx
+│   │   │   └── input.tsx
 │   │   ├── chart-modal-plotly.tsx
-│   │   ├── data-grid.tsx
-│   │   ├── query-executor.tsx
-│   │   └── table-sidebar.tsx
-│   ├── contexts/           # React contexts
-│   ├── pages/              # Page components
-│   ├── types/              # TypeScript definitions
-│   └── lib/                # Utilities
-├── server.js               # Express API server
+│   │   ├── column-management-modal.tsx
+│   │   ├── connection-input.tsx
+│   │   ├── loading-screen.tsx
+│   │   ├── query-executor-simple.tsx
+│   │   ├── table-sidebar.tsx
+│   │   ├── theme-toggle.tsx
+│   │   ├── virtual-data-grid.tsx
+│   │   └── visualization-panel.tsx
+│   ├── contexts/               # React contexts
+│   │   └── theme-context.tsx
+│   ├── hooks/                  # Custom React hooks
+│   │   ├── use-app-loader.ts
+│   │   └── use-kdb-connection.ts
+│   ├── pages/                  # Page components
+│   │   └── dashboard-page.tsx
+│   ├── services/               # API services
+│   │   └── kdb-api.ts
+│   ├── types/                  # TypeScript definitions
+│   │   ├── kdb.ts
+│   │   └── plotly.d.ts
+│   ├── lib/                    # Utilities
+│   │   └── utils.ts
+│   ├── App.tsx
+│   ├── main.tsx
+│   └── index.css
+├── public/
+│   └── vite.svg               # Default favicon
+├── tests/
+│   └── connection.spec.ts     # E2E tests
+├── dist/                      # Build output
+├── server.js                  # Express API server
 ├── package.json
+├── vite.config.ts
+├── tsconfig.json
+├── tailwind.config.js
+├── postcss.config.js
+├── playwright.config.ts
 └── README.md
 ```
 
@@ -240,21 +289,29 @@ DEBUG=kdb-viz:* npm run server
 
 2. **Start development mode**
    ```bash
+   # Option 1: Run both frontend and backend together
+   npm run dev:full
+
+   # Option 2: Run separately
    # Terminal 1: Frontend with hot reload
    npm run dev
 
-   # Terminal 2: Backend with auto-restart
-   npm run server:dev
+   # Terminal 2: Backend server
+   npm run server
    ```
 
-3. **Type checking**
-   ```bash
-   npm run type-check
-   ```
-
-4. **Linting**
+3. **Linting**
    ```bash
    npm run lint
+   ```
+
+4. **Testing**
+   ```bash
+   # Unit tests
+   npm run test
+
+   # E2E tests
+   npm run test:e2e
    ```
 
 ### Building for Production
@@ -311,10 +368,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 - **KX Systems** for KDB+ database technology
-- **Observable** for initial Plot.js inspiration
 - **Plotly.js** team for excellent visualization library
-- **Shadcn** for beautiful UI components
+- **TanStack** for virtual scrolling solutions
 - **React** and **TypeScript** communities
+- **Tailwind CSS** for utility-first styling
 
 ## 📞 Support
 
