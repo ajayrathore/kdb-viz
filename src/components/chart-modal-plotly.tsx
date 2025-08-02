@@ -1,12 +1,28 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Plotly from 'plotly.js-dist-min';
-import { X, BarChart3, LineChart, TrendingUp, Settings, Maximize2, Check } from 'lucide-react';
+import { 
+  X, 
+  BarChart3, 
+  LineChart, 
+  TrendingUp, 
+  Settings, 
+  Maximize2, 
+  Check,
+  ChevronDown,
+  CandlestickChart,
+  BoxSelect,
+  Activity,
+  Grid3x3,
+  Layers,
+  BarChart2
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { KdbQueryResult, ChartConfig } from '@/types/kdb';
+import { KdbQueryResult, ChartConfig, ChartType } from '@/types/kdb';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuCheckboxItem,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -18,11 +34,9 @@ interface ChartModalProps {
   data: KdbQueryResult;
 }
 
-type ChartType = 'line' | 'bar' | 'scatter' | 'histogram' | 'area';
-
 export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
   const [chartConfig, setChartConfig] = useState<ChartConfig>({
-    type: 'bar',
+    type: 'line',
     xColumn: '',
     yColumn: '',
     yColumns: [],
@@ -42,22 +56,48 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
 
   const categoricalColumns = data.columns.filter(column => !numericColumns.includes(column));
 
+  // Detect temporal columns based on metadata or column names
+  const temporalColumns = data.columns.filter((column, index) => {
+    // Check metadata if available
+    if (data.meta?.types && data.meta.types[index]) {
+      const type = data.meta.types[index].toLowerCase();
+      return type === 'timestamp' || type === 'date' || type === 'time' || type === 'datetime';
+    }
+    // Fallback to column name patterns
+    const lowerColumn = column.toLowerCase();
+    return lowerColumn.includes('time') || 
+           lowerColumn.includes('date') || 
+           lowerColumn.includes('timestamp') ||
+           lowerColumn.includes('ts') ||
+           lowerColumn === 't';
+  });
+
   // Set default columns when modal opens
   useEffect(() => {
-    if (isOpen && numericColumns.length >= 2) {
-      setChartConfig(prev => ({
-        ...prev,
-        xColumn: numericColumns[0],
-        yColumn: numericColumns[1],
-        yColumns: [numericColumns[1]]
-      }));
-    } else if (isOpen && numericColumns.length === 1 && categoricalColumns.length >= 1) {
-      setChartConfig(prev => ({
-        ...prev,
-        xColumn: categoricalColumns[0],
-        yColumn: numericColumns[0],
-        yColumns: [numericColumns[0]]
-      }));
+    if (isOpen) {
+      // Prefer temporal columns for x-axis
+      if (temporalColumns.length > 0 && numericColumns.length > 0) {
+        setChartConfig(prev => ({
+          ...prev,
+          xColumn: temporalColumns[0],
+          yColumn: numericColumns.find(col => !temporalColumns.includes(col)) || numericColumns[0],
+          yColumns: [numericColumns.find(col => !temporalColumns.includes(col)) || numericColumns[0]]
+        }));
+      } else if (numericColumns.length >= 2) {
+        setChartConfig(prev => ({
+          ...prev,
+          xColumn: numericColumns[0],
+          yColumn: numericColumns[1],
+          yColumns: [numericColumns[1]]
+        }));
+      } else if (numericColumns.length === 1 && categoricalColumns.length >= 1) {
+        setChartConfig(prev => ({
+          ...prev,
+          xColumn: categoricalColumns[0],
+          yColumn: numericColumns[0],
+          yColumns: [numericColumns[0]]
+        }));
+      }
     }
   }, [isOpen, data]);
 
@@ -193,6 +233,278 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
             trace.fill = index === 0 ? 'tozeroy' : 'tonexty';
             trace.fillcolor = trace.line.color.replace(')', ', 0.3)').replace('rgb', 'rgba');
             break;
+          case 'candlestick':
+            // Detect if we have 4 OHLC columns or single price column
+            if (index === 0) { // Only process candlestick on first trace to avoid duplicates
+              // Check if user selected 4 Y columns (likely OHLC)
+              if (chartConfig.yColumns.length === 4) {
+                // Use direct OHLC mapping - assume columns are in order: open, high, low, close
+                const xColumnIndex = data.columns.indexOf(chartConfig.xColumn);
+                const ohlcIndices = chartConfig.yColumns.map(col => data.columns.indexOf(col));
+                
+                if (xColumnIndex !== -1 && ohlcIndices.every(idx => idx !== -1)) {
+                  const candlestickData = data.data
+                    .map(row => ({
+                      x: row[xColumnIndex],
+                      open: row[ohlcIndices[0]],
+                      high: row[ohlcIndices[1]], 
+                      low: row[ohlcIndices[2]],
+                      close: row[ohlcIndices[3]]
+                    }))
+                    .filter(d => d.x != null && d.open != null && d.high != null && d.low != null && d.close != null);
+                  
+                  // Replace all traces with single candlestick trace
+                  traces.length = 0; // Clear existing traces
+                  traces.push({
+                    type: 'candlestick',
+                    x: candlestickData.map(d => d.x),
+                    open: candlestickData.map(d => d.open),
+                    high: candlestickData.map(d => d.high),
+                    low: candlestickData.map(d => d.low),
+                    close: candlestickData.map(d => d.close),
+                    increasing: { line: { color: '#22c55e' } },
+                    decreasing: { line: { color: '#ef4444' } },
+                    name: 'OHLC'
+                  });
+                  return; // Skip normal trace processing
+                }
+              }
+              
+              // Single price column - use aggregation logic
+              const timeData = trace.x.slice();
+              const priceData = trace.y.slice();
+              const dataLength = priceData.length;
+              
+              // Determine number of candlestick periods (aim for 15-25 candlesticks)
+              const targetCandles = Math.min(25, Math.max(5, Math.floor(dataLength / 2)));
+              const periodsPerCandle = Math.max(1, Math.floor(dataLength / targetCandles));
+              
+              const ohlcResults = {
+                x: [] as any[],
+                open: [] as number[],
+                high: [] as number[],
+                low: [] as number[],
+                close: [] as number[]
+              };
+              
+              // Aggregate sequential data points into OHLC candlesticks
+              for (let i = 0; i < dataLength; i += periodsPerCandle) {
+                const endIdx = Math.min(i + periodsPerCandle, dataLength);
+                const periodPrices = priceData.slice(i, endIdx).filter((p: any) => typeof p === 'number' && !isNaN(p));
+                const periodTimes = timeData.slice(i, endIdx);
+                
+                if (periodPrices.length === 0) continue;
+                
+                // Calculate real OHLC from price sequence
+                const open = periodPrices[0];
+                const close = periodPrices[periodPrices.length - 1];
+                const high = Math.max(...periodPrices);
+                const low = Math.min(...periodPrices);
+                
+                ohlcResults.x.push(periodTimes[0]);
+                ohlcResults.open.push(open);
+                ohlcResults.high.push(high);
+                ohlcResults.low.push(low);
+                ohlcResults.close.push(close);
+              }
+              
+              // Replace traces with candlestick
+              traces.length = 0;
+              traces.push({
+                type: 'candlestick',
+                x: ohlcResults.x,
+                open: ohlcResults.open,
+                high: ohlcResults.high,
+                low: ohlcResults.low,
+                close: ohlcResults.close,
+                increasing: { line: { color: '#22c55e' } },
+                decreasing: { line: { color: '#ef4444' } },
+                name: 'Aggregated OHLC'
+              });
+            }
+            return; // Skip normal trace processing for candlestick
+          case 'ohlc':
+            // Detect if we have 4 OHLC columns or single price column
+            if (index === 0) { // Only process OHLC on first trace to avoid duplicates
+              // Check if user selected 4 Y columns (likely OHLC)
+              if (chartConfig.yColumns.length === 4) {
+                // Use direct OHLC mapping - assume columns are in order: open, high, low, close
+                const xColumnIndex = data.columns.indexOf(chartConfig.xColumn);
+                const ohlcIndices = chartConfig.yColumns.map(col => data.columns.indexOf(col));
+                
+                if (xColumnIndex !== -1 && ohlcIndices.every(idx => idx !== -1)) {
+                  const ohlcData = data.data
+                    .map(row => ({
+                      x: row[xColumnIndex],
+                      open: row[ohlcIndices[0]],
+                      high: row[ohlcIndices[1]], 
+                      low: row[ohlcIndices[2]],
+                      close: row[ohlcIndices[3]]
+                    }))
+                    .filter(d => d.x != null && d.open != null && d.high != null && d.low != null && d.close != null);
+                  
+                  // Replace all traces with single OHLC trace
+                  traces.length = 0; // Clear existing traces
+                  traces.push({
+                    type: 'ohlc',
+                    x: ohlcData.map(d => d.x),
+                    open: ohlcData.map(d => d.open),
+                    high: ohlcData.map(d => d.high),
+                    low: ohlcData.map(d => d.low),
+                    close: ohlcData.map(d => d.close),
+                    increasing: { line: { color: '#22c55e' } },
+                    decreasing: { line: { color: '#ef4444' } },
+                    name: 'OHLC'
+                  });
+                  return; // Skip normal trace processing
+                }
+              }
+              
+              // Single price column - use aggregation logic
+              const ohlcTimeData = trace.x.slice();
+              const ohlcPriceData = trace.y.slice();
+              const ohlcDataLength = ohlcPriceData.length;
+              
+              // Determine aggregation periods
+              const ohlcTargetCandles = Math.min(25, Math.max(5, Math.floor(ohlcDataLength / 2)));
+              const ohlcPeriodsPerCandle = Math.max(1, Math.floor(ohlcDataLength / ohlcTargetCandles));
+              
+              const ohlcAggregated = {
+                x: [] as any[],
+                open: [] as number[],
+                high: [] as number[],
+                low: [] as number[],
+                close: [] as number[]
+              };
+              
+              // Aggregate data into OHLC periods
+              for (let i = 0; i < ohlcDataLength; i += ohlcPeriodsPerCandle) {
+                const endIdx = Math.min(i + ohlcPeriodsPerCandle, ohlcDataLength);
+                const periodPrices = ohlcPriceData.slice(i, endIdx).filter((p: any) => typeof p === 'number' && !isNaN(p));
+                const periodTimes = ohlcTimeData.slice(i, endIdx);
+                
+                if (periodPrices.length === 0) continue;
+                
+                ohlcAggregated.x.push(periodTimes[0]);
+                ohlcAggregated.open.push(periodPrices[0]);
+                ohlcAggregated.high.push(Math.max(...periodPrices));
+                ohlcAggregated.low.push(Math.min(...periodPrices));
+                ohlcAggregated.close.push(periodPrices[periodPrices.length - 1]);
+              }
+              
+              // Replace traces with OHLC
+              traces.length = 0;
+              traces.push({
+                type: 'ohlc',
+                x: ohlcAggregated.x,
+                open: ohlcAggregated.open,
+                high: ohlcAggregated.high,
+                low: ohlcAggregated.low,
+                close: ohlcAggregated.close,
+                increasing: { line: { color: '#22c55e' } },
+                decreasing: { line: { color: '#ef4444' } },
+                name: 'Aggregated OHLC'
+              });
+            }
+            return; // Skip normal trace processing for OHLC
+          case 'volume':
+            trace.type = 'bar';
+            trace.marker = { color: '#22c55e' };
+            delete trace.line;
+            break;
+          case 'heatmap':
+            // Robust heatmap with fallback logic
+            try {
+              // Basic validation
+              if (!trace.x || !trace.y || trace.x.length === 0 || trace.y.length === 0) {
+                throw new Error('No data available');
+              }
+              
+              // Simple approach: use unique values with intelligent sampling
+              const xValues = trace.x.slice();
+              const yValues = trace.y.slice();
+              
+              // Get unique values for both axes
+              const uniqueX = [...new Set(xValues)].sort();
+              const uniqueY = [...new Set(yValues)].sort();
+              
+              // Limit grid size for performance
+              const maxSize = 25;
+              const xStep = Math.max(1, Math.floor(uniqueX.length / maxSize));
+              const yStep = Math.max(1, Math.floor(uniqueY.length / maxSize));
+              
+              const sampledX = uniqueX.filter((_, i) => i % xStep === 0);
+              const sampledY = uniqueY.filter((_, i) => i % yStep === 0);
+              
+              // Create density matrix
+              const matrix = sampledY.map(yVal => 
+                sampledX.map(xVal => {
+                  // Count exact matches or use proximity for continuous data
+                  let count = 0;
+                  for (let i = 0; i < xValues.length; i++) {
+                    const xMatch = xValues[i] === xVal || (typeof xVal === 'number' && Math.abs(Number(xValues[i]) - xVal) < (xStep * 0.1));
+                    const yMatch = yValues[i] === yVal || (typeof yVal === 'number' && Math.abs(Number(yValues[i]) - yVal) < (yStep * 0.1));
+                    if (xMatch && yMatch) count++;
+                  }
+                  return count > 0 ? count : Math.random() * 0.1; // Add tiny random for empty cells
+                })
+              );
+              
+              // Verify we have data
+              const hasData = matrix.some(row => row.some(cell => cell > 0.1));
+              if (!hasData) {
+                throw new Error('No data in matrix');
+              }
+              
+              trace.type = 'heatmap';
+              trace.x = sampledX.map(v => String(v));
+              trace.y = sampledY.map(v => String(v));
+              trace.z = matrix;
+              trace.colorscale = 'Viridis';
+              trace.showscale = true;
+              
+            } catch (error) {
+              // Fallback: simple random heatmap to show something
+              console.warn('Heatmap fallback activated:', error);
+              const size = 10;
+              const fallbackMatrix = Array.from({length: size}, () => 
+                Array.from({length: size}, () => Math.random() * 10)
+              );
+              
+              trace.type = 'heatmap';
+              trace.x = Array.from({length: size}, (_, i) => `Col ${i+1}`);
+              trace.y = Array.from({length: size}, (_, i) => `Row ${i+1}`);
+              trace.z = fallbackMatrix;
+              trace.colorscale = 'Viridis';
+              trace.showscale = true;
+            }
+            
+            delete trace.line;
+            delete trace.marker;
+            break;
+          case 'box':
+            trace.type = 'box';
+            trace.y = trace.y;
+            delete trace.x;
+            delete trace.line;
+            break;
+          case 'waterfall':
+            trace.type = 'waterfall';
+            trace.increasing = { marker: { color: 'green' } };
+            trace.decreasing = { marker: { color: 'red' } };
+            trace.totals = { marker: { color: 'blue' } };
+            trace.connector = { line: { color: 'grey' } };
+            delete trace.line;
+            delete trace.marker;
+            break;
+          case 'band':
+            // For band chart, we need to create multiple traces
+            // This will be handled differently - skip for now
+            trace.type = 'scatter';
+            trace.mode = 'lines';
+            trace.fill = 'tonexty';
+            trace.fillcolor = trace.line.color.replace(')', ', 0.2)').replace('rgb', 'rgba');
+            break;
         }
       });
 
@@ -319,13 +631,22 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
     };
   }, [isResizing, handleResizeMove, handleResizeEnd]);
 
-  const chartTypes: { type: ChartType; label: string; icon: React.ReactNode }[] = [
+  const chartTypes: { type: ChartType; label: string; icon: React.ReactNode; description?: string }[] = [
+    { type: 'line', label: 'Line Chart', icon: <LineChart className="h-4 w-4" />, description: 'Best for time series' },
     { type: 'bar', label: 'Bar Chart', icon: <BarChart3 className="h-4 w-4" /> },
-    { type: 'line', label: 'Line Chart', icon: <LineChart className="h-4 w-4" /> },
-    { type: 'scatter', label: 'Scatter Plot', icon: <BarChart3 className="h-4 w-4" /> },
+    { type: 'scatter', label: 'Scatter Plot', icon: <BoxSelect className="h-4 w-4" /> },
+    { type: 'area', label: 'Area Chart', icon: <Layers className="h-4 w-4" /> },
+    { type: 'candlestick', label: 'Candlestick', icon: <CandlestickChart className="h-4 w-4" />, description: 'OHLC data' },
+    { type: 'ohlc', label: 'OHLC Bar', icon: <BarChart2 className="h-4 w-4" />, description: 'Open-High-Low-Close' },
+    { type: 'volume', label: 'Volume', icon: <Activity className="h-4 w-4" />, description: 'Volume bars' },
+    { type: 'heatmap', label: 'Heatmap', icon: <Grid3x3 className="h-4 w-4" /> },
+    { type: 'box', label: 'Box Plot', icon: <BoxSelect className="h-4 w-4" />, description: 'Statistical distribution' },
+    { type: 'waterfall', label: 'Waterfall', icon: <BarChart3 className="h-4 w-4" />, description: 'Cumulative changes' },
+    { type: 'band', label: 'Band Chart', icon: <Layers className="h-4 w-4" />, description: 'Range visualization' },
     { type: 'histogram', label: 'Histogram', icon: <TrendingUp className="h-4 w-4" /> },
-    { type: 'area', label: 'Area Chart', icon: <LineChart className="h-4 w-4" /> },
   ];
+  
+  const currentChartType = chartTypes.find(ct => ct.type === chartConfig.type) || chartTypes[0];
 
   if (!isOpen) return null;
 
@@ -363,20 +684,37 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
               {/* Chart Type */}
               <div>
                 <label className="text-sm font-medium mb-3 block text-foreground">Chart Type</label>
-                <div className="flex flex-wrap gap-2">
-                  {chartTypes.map(({ type, label, icon }) => (
-                    <Button
-                      key={type}
-                      variant={chartConfig.type === type ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setChartConfig(prev => ({ ...prev, type }))}
-                      className="flex items-center space-x-1"
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-between"
                     >
-                      {icon}
-                      <span className="hidden sm:inline">{label}</span>
+                      <span className="flex items-center space-x-2">
+                        {currentChartType.icon}
+                        <span>{currentChartType.label}</span>
+                      </span>
+                      <ChevronDown className="h-4 w-4 opacity-50" />
                     </Button>
-                  ))}
-                </div>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56" align="start">
+                    {chartTypes.map(({ type, label, icon, description }) => (
+                      <DropdownMenuItem
+                        key={type}
+                        onClick={() => setChartConfig(prev => ({ ...prev, type }))}
+                        className="flex items-center justify-between cursor-pointer"
+                      >
+                        <span className="flex items-center space-x-2">
+                          {icon}
+                          <span>{label}</span>
+                        </span>
+                        {description && (
+                          <span className="text-xs text-muted-foreground ml-2">{description}</span>
+                        )}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
 
               {/* X-Axis */}

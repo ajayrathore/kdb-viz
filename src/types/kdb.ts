@@ -35,11 +35,33 @@ export interface KdbParameter {
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
+export type ChartType = 
+  | 'line' 
+  | 'bar' 
+  | 'scatter' 
+  | 'histogram' 
+  | 'area'
+  | 'candlestick'
+  | 'ohlc'
+  | 'volume'
+  | 'heatmap'
+  | 'box'
+  | 'waterfall'
+  | 'band';
+
 export interface ChartConfig {
-  type: 'line' | 'bar' | 'scatter' | 'histogram' | 'area';
+  type: ChartType;
   xColumn: string;
   yColumn: string;  // Keep for backward compatibility
   yColumns: string[];  // New: support multiple Y columns
   colorColumn?: string;
   title?: string;
+  // Additional fields for OHLC charts
+  openColumn?: string;
+  highColumn?: string;
+  lowColumn?: string;
+  closeColumn?: string;
+  // Additional fields for band/range charts
+  upperColumn?: string;
+  lowerColumn?: string;
 }

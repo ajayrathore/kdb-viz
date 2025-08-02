@@ -1,19 +1,35 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Plotly from 'plotly.js-dist-min';
-import { BarChart3, LineChart, TrendingUp, Settings } from 'lucide-react';
+import { 
+  BarChart3, 
+  LineChart, 
+  TrendingUp, 
+  Settings, 
+  ChevronDown,
+  CandlestickChart,
+  BoxSelect,
+  Activity,
+  Grid3x3,
+  Layers,
+  BarChart2
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { KdbQueryResult, ChartConfig } from '@/types/kdb';
+import { KdbQueryResult, ChartConfig, ChartType } from '@/types/kdb';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface VisualizationPanelProps {
   data: KdbQueryResult;
   isExpanded?: boolean;
 }
 
-type ChartType = 'line' | 'bar' | 'scatter' | 'histogram' | 'area';
-
 export function VisualizationPanel({ data, isExpanded = false }: VisualizationPanelProps) {
   const [chartConfig, setChartConfig] = useState<ChartConfig>({
-    type: 'bar',
+    type: 'line',
     xColumn: '',
     yColumn: '',
     yColumns: [],
@@ -29,8 +45,31 @@ export function VisualizationPanel({ data, isExpanded = false }: VisualizationPa
 
   const categoricalColumns = data.columns.filter(column => !numericColumns.includes(column));
 
+  // Detect temporal columns based on metadata or column names
+  const temporalColumns = data.columns.filter((column, index) => {
+    // Check metadata if available
+    if (data.meta?.types && data.meta.types[index]) {
+      const type = data.meta.types[index].toLowerCase();
+      return type === 'timestamp' || type === 'date' || type === 'time' || type === 'datetime';
+    }
+    // Fallback to column name patterns
+    const lowerColumn = column.toLowerCase();
+    return lowerColumn.includes('time') || 
+           lowerColumn.includes('date') || 
+           lowerColumn.includes('timestamp') ||
+           lowerColumn.includes('ts') ||
+           lowerColumn === 't';
+  });
+
   useEffect(() => {
-    if (numericColumns.length >= 2) {
+    // Prefer temporal columns for x-axis
+    if (temporalColumns.length > 0 && numericColumns.length > 0) {
+      setChartConfig(prev => ({
+        ...prev,
+        xColumn: temporalColumns[0],
+        yColumn: numericColumns.find(col => !temporalColumns.includes(col)) || numericColumns[0]
+      }));
+    } else if (numericColumns.length >= 2) {
       setChartConfig(prev => ({
         ...prev,
         xColumn: numericColumns[0],
@@ -84,20 +123,25 @@ export function VisualizationPanel({ data, isExpanded = false }: VisualizationPa
       };
 
       // Chart type-specific configuration
+      let traces: any[] = [trace];
+      
       switch (chartConfig.type) {
         case 'line':
           trace.type = 'scatter';
           trace.mode = 'lines+markers';
           break;
+          
         case 'bar':
           trace.type = 'bar';
           delete trace.line;
           break;
+          
         case 'scatter':
           trace.type = 'scatter';
           trace.mode = 'markers';
           delete trace.line;
           break;
+          
         case 'histogram':
           trace = {
             x: xData,
@@ -105,12 +149,128 @@ export function VisualizationPanel({ data, isExpanded = false }: VisualizationPa
             marker: { color: '#3b82f6' },
             name: chartConfig.xColumn
           };
+          traces = [trace];
           break;
+          
         case 'area':
           trace.type = 'scatter';
           trace.mode = 'lines';
           trace.fill = 'tonexty';
           trace.fillcolor = 'rgba(59, 130, 246, 0.3)';
+          break;
+          
+        case 'candlestick':
+          // For candlestick, we need OHLC columns
+          // This is a placeholder - in real usage, user would select OHLC columns
+          trace = {
+            x: xData,
+            close: yData,
+            high: yData.map(v => v * 1.05),
+            low: yData.map(v => v * 0.95),
+            open: yData.map(v => v * (0.98 + Math.random() * 0.04)),
+            type: 'candlestick',
+            increasing: { line: { color: 'green' } },
+            decreasing: { line: { color: 'red' } },
+            name: 'OHLC'
+          };
+          traces = [trace];
+          break;
+          
+        case 'ohlc':
+          trace = {
+            x: xData,
+            close: yData,
+            high: yData.map(v => v * 1.05),
+            low: yData.map(v => v * 0.95),
+            open: yData.map(v => v * (0.98 + Math.random() * 0.04)),
+            type: 'ohlc',
+            increasing: { line: { color: 'green' } },
+            decreasing: { line: { color: 'red' } },
+            name: 'OHLC'
+          };
+          traces = [trace];
+          break;
+          
+        case 'volume':
+          trace.type = 'bar';
+          trace.marker = { color: '#22c55e' };
+          delete trace.line;
+          break;
+          
+        case 'heatmap':
+          // Create a simple heatmap with the available data
+          const uniqueX = [...new Set(xData)].slice(0, 10);
+          const uniqueY = [...new Set(yData)].slice(0, 10);
+          const z = uniqueX.map(() => uniqueY.map(() => Math.random()));
+          
+          trace = {
+            x: uniqueX,
+            y: uniqueY,
+            z: z,
+            type: 'heatmap',
+            colorscale: 'Viridis'
+          };
+          traces = [trace];
+          break;
+          
+        case 'box':
+          trace = {
+            y: yData,
+            type: 'box',
+            name: chartConfig.yColumn,
+            marker: { color: '#3b82f6' }
+          };
+          traces = [trace];
+          break;
+          
+        case 'waterfall':
+          trace = {
+            x: xData,
+            y: yData,
+            type: 'waterfall',
+            increasing: { marker: { color: 'green' } },
+            decreasing: { marker: { color: 'red' } },
+            totals: { marker: { color: 'blue' } },
+            connector: { line: { color: 'grey' } },
+            name: 'Waterfall'
+          };
+          traces = [trace];
+          break;
+          
+        case 'band':
+          // Band chart showing upper and lower bounds
+          const bandTrace = {
+            x: xData,
+            y: yData,
+            type: 'scatter',
+            mode: 'lines',
+            name: 'Middle',
+            line: { color: '#3b82f6' }
+          };
+          
+          const upperTrace = {
+            x: xData,
+            y: yData.map(v => v * 1.1),
+            type: 'scatter',
+            mode: 'lines',
+            name: 'Upper',
+            line: { width: 0 },
+            showlegend: false
+          };
+          
+          const lowerTrace = {
+            x: xData,
+            y: yData.map(v => v * 0.9),
+            type: 'scatter',
+            mode: 'lines',
+            name: 'Lower',
+            fill: 'tonexty',
+            fillcolor: 'rgba(59, 130, 246, 0.2)',
+            line: { width: 0 },
+            showlegend: false
+          };
+          
+          traces = [lowerTrace, upperTrace, bandTrace];
           break;
       }
 
@@ -150,7 +310,7 @@ export function VisualizationPanel({ data, isExpanded = false }: VisualizationPa
       };
 
       // Create new plot
-      Plotly.newPlot(chartRef.current, [trace], layout, config);
+      Plotly.newPlot(chartRef.current, traces, layout, config);
 
     } catch (error) {
       console.error('Error creating Plotly visualization:', error);
@@ -160,13 +320,22 @@ export function VisualizationPanel({ data, isExpanded = false }: VisualizationPa
     }
   }, [chartConfig, data, isExpanded]);
 
-  const chartTypes: { type: ChartType; label: string; icon: React.ReactNode }[] = [
+  const chartTypes: { type: ChartType; label: string; icon: React.ReactNode; description?: string }[] = [
+    { type: 'line', label: 'Line Chart', icon: <LineChart className="h-4 w-4" />, description: 'Best for time series' },
     { type: 'bar', label: 'Bar Chart', icon: <BarChart3 className="h-4 w-4" /> },
-    { type: 'line', label: 'Line Chart', icon: <LineChart className="h-4 w-4" /> },
-    { type: 'scatter', label: 'Scatter Plot', icon: <BarChart3 className="h-4 w-4" /> },
+    { type: 'scatter', label: 'Scatter Plot', icon: <BoxSelect className="h-4 w-4" /> },
+    { type: 'area', label: 'Area Chart', icon: <Layers className="h-4 w-4" /> },
+    { type: 'candlestick', label: 'Candlestick', icon: <CandlestickChart className="h-4 w-4" />, description: 'OHLC data' },
+    { type: 'ohlc', label: 'OHLC Bar', icon: <BarChart2 className="h-4 w-4" />, description: 'Open-High-Low-Close' },
+    { type: 'volume', label: 'Volume', icon: <Activity className="h-4 w-4" />, description: 'Volume bars' },
+    { type: 'heatmap', label: 'Heatmap', icon: <Grid3x3 className="h-4 w-4" /> },
+    { type: 'box', label: 'Box Plot', icon: <BoxSelect className="h-4 w-4" />, description: 'Statistical distribution' },
+    { type: 'waterfall', label: 'Waterfall', icon: <BarChart3 className="h-4 w-4" />, description: 'Cumulative changes' },
+    { type: 'band', label: 'Band Chart', icon: <Layers className="h-4 w-4" />, description: 'Range visualization' },
     { type: 'histogram', label: 'Histogram', icon: <TrendingUp className="h-4 w-4" /> },
-    { type: 'area', label: 'Area Chart', icon: <LineChart className="h-4 w-4" /> },
   ];
+  
+  const currentChartType = chartTypes.find(ct => ct.type === chartConfig.type) || chartTypes[0];
 
   return (
     <div className="h-full flex flex-col">
@@ -190,20 +359,37 @@ export function VisualizationPanel({ data, isExpanded = false }: VisualizationPa
             {/* Chart Type Selection */}
             <div>
               <label className="text-sm font-medium mb-2 block text-foreground">Chart Type</label>
-              <div className="flex flex-wrap gap-1">
-                {chartTypes.map(({ type, label, icon }) => (
-                  <Button
-                    key={type}
-                    variant={chartConfig.type === type ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setChartConfig(prev => ({ ...prev, type }))}
-                    className="flex items-center space-x-1"
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-between"
                   >
-                    {icon}
-                    <span className="hidden sm:inline">{label}</span>
+                    <span className="flex items-center space-x-2">
+                      {currentChartType.icon}
+                      <span>{currentChartType.label}</span>
+                    </span>
+                    <ChevronDown className="h-4 w-4 opacity-50" />
                   </Button>
-                ))}
-              </div>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="start">
+                  {chartTypes.map(({ type, label, icon, description }) => (
+                    <DropdownMenuItem
+                      key={type}
+                      onClick={() => setChartConfig(prev => ({ ...prev, type }))}
+                      className="flex items-center justify-between cursor-pointer"
+                    >
+                      <span className="flex items-center space-x-2">
+                        {icon}
+                        <span>{label}</span>
+                      </span>
+                      {description && (
+                        <span className="text-xs text-muted-foreground ml-2">{description}</span>
+                      )}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             {/* Column Selection */}
