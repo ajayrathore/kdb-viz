@@ -63,7 +63,7 @@ export function VirtualDataGrid({
   // Initialize column order when data changes
   React.useEffect(() => {
     if (data?.columns) {
-      setColumnOrder(data.columns.map((_, index) => index.toString()));
+      setColumnOrder(['__row_number__', ...data.columns.map((_, index) => index.toString())]);
     }
   }, [data]);
 
@@ -211,17 +211,57 @@ export function VirtualDataGrid({
     URL.revokeObjectURL(url);
   };
 
+  // Calculate basic values first
+  const totalDataRows = data?.data?.length || 0;
+  const currentDisplayPage = clientSidePagination ? clientPage : currentPage;
+
   const columns = useMemo<ColumnDef<any>[]>(() => {
     if (!data || !data.columns || columnOrder.length === 0) return [];
     
-    return columnOrder.map((colId) => {
-      const index = parseInt(colId);
-      const columnName = data.columns[index];
+    // Ultra-conservative width calculation to prevent cropping
+    const maxRowNumber = clientSidePagination ? totalDataRows : totalRows;
+    const digits = Math.max(1, (maxRowNumber || 1).toString().length);
+    const characterWidthAt06rem = 7.0; // More conservative width for 0.6rem JetBrains Mono
+    const overhead = 40; // padding(22) + border(2) + extra safety margin(16)
+    const preciseWidth = Math.ceil(digits * characterWidthAt06rem + overhead);
+    const rowNumberWidth = Math.max(45, Math.min(160, preciseWidth));
+    
+    // Row number column (always first)
+    const rowNumberColumn: ColumnDef<any> = {
+      id: '__row_number__',
+      header: () => (
+        <div className="row-number-header" title="Row number"></div>
+      ),
+      size: rowNumberWidth,
+      minSize: 45, // Minimum for comfortable display with padding
+      maxSize: 160, // Maximum for very large datasets  
+      enableResizing: true,
+      enableSorting: false,
+      enableColumnFilter: false,
+      enableGlobalFilter: false,
+      enableHiding: false,
+      cell: ({ row }) => {
+        // For static row numbers, use the original dataset position
+        const originalIndex = row.original._originalRowIndex;
+        const rowNumber = originalIndex + 1; // Simple 1-based numbering from original dataset
+        return (
+          <div className="row-number-cell" title={`Original row ${rowNumber}`}>
+            {rowNumber}
+          </div>
+        );
+      }
+    };
+    
+    const dataColumns = columnOrder
+      .filter(colId => colId !== '__row_number__') // Exclude row number column
+      .map((colId) => {
+        const index = parseInt(colId);
+        const columnName = data.columns[index];
       
       return {
         id: colId,
         accessorKey: colId,
-        header: ({ column }) => (
+        header: ({ column }: any) => (
           <div 
             className={`flex items-center space-x-2 ${
               enableColumnControls ? 'cursor-move' : ''
@@ -253,7 +293,7 @@ export function VirtualDataGrid({
         minSize: 50, // Minimum column width
         maxSize: 500, // Maximum column width
         enableResizing: true,
-        cell: ({ getValue }) => {
+        cell: ({ getValue }: any) => {
           const value = getValue();
           if (value === null || value === undefined) return '-';
           if (typeof value === 'number') {
@@ -277,7 +317,10 @@ export function VirtualDataGrid({
         },
       };
     });
-  }, [data, columnOrder, enableColumnControls, draggedColumn, handleDragStart, handleDragOver, handleDrop, handleDragEnd]);
+    
+    // Return row number column first, followed by data columns
+    return [rowNumberColumn, ...dataColumns];
+  }, [data, columnOrder, enableColumnControls, draggedColumn, handleDragStart, handleDragOver, handleDrop, handleDragEnd, clientSidePagination, clientPage, clientPageSize, currentDisplayPage, pageSize, totalDataRows, totalRows]);
 
   const tableData = useMemo(() => {
     if (!data || !data.data) return [];
@@ -286,7 +329,9 @@ export function VirtualDataGrid({
       row.forEach((cell, cellIndex) => {
         rowObj[cellIndex.toString()] = cell;
       });
-      rowObj._id = rowIndex;
+      // Store original index that will never change regardless of sorting
+      rowObj._originalRowIndex = rowIndex;
+      rowObj._id = rowIndex; // Keep for backward compatibility
       return rowObj;
     });
     
@@ -337,7 +382,6 @@ export function VirtualDataGrid({
   const totalSize = rowVirtualizer.getTotalSize();
 
   // Calculate total pages based on mode
-  const totalDataRows = data?.data?.length || 0;
   const totalPages = clientSidePagination && totalDataRows > 0
     ? Math.ceil(totalDataRows / clientPageSize)
     : Math.ceil(totalRows / pageSize);
@@ -353,8 +397,6 @@ export function VirtualDataGrid({
       onPageChange(newPage * pageSize, pageSize);
     }
   };
-  
-  const currentDisplayPage = clientSidePagination ? clientPage : currentPage;
 
   // Navigation helper functions
   const scrollToTop = () => {
@@ -664,14 +706,16 @@ export function VirtualDataGrid({
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
-                    className="data-table-cell relative px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                    className={`data-table-cell relative px-4 py-4 text-left text-sm font-semibold text-foreground tracking-wider ${
+                      header.column.id === '__row_number__' ? 'row-number-header-cell' : ''
+                    }`}
                     style={{ width: header.column.getSize() }}
                   >
                     {header.isPlaceholder ? null : (
                       <>
                         <div
                           className={`flex items-center space-x-1 ${
-                            header.column.getCanSort() ? 'cursor-pointer select-none hover:text-foreground' : ''
+                            header.column.getCanSort() ? 'cursor-pointer select-none hover:text-primary transition-colors' : ''
                           }`}
                           onClick={header.column.getToggleSortingHandler()}
                         >

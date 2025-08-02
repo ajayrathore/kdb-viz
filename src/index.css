@@ -75,7 +75,7 @@
     --ring: 142 70% 45%;               /* Match primary for focus rings */
     
     /* Financial data table colors */
-    --table-header: 217.2 32.6% 18%;   /* Table header background */
+    --table-header: 217.2 32.6% 22%;   /* Table header background - more prominent */
     --table-row-even: 217.2 32.6% 8%;  /* Alternating row color */
     --table-row-hover: 217.2 45% 15%;  /* Row hover state */
     --table-border: 217.2 32.6% 25%;   /* Table borders */
@@ -131,7 +131,7 @@
   }
   
   /* Better visual feedback for column borders */
-  th:not(:last-child),
+  th:not(:last-child):not(.row-number-header-cell),
   td:not(:last-child) {
     @apply border-r border-border;
   }
@@ -542,7 +542,8 @@
   
   .data-table-header {
     background: hsl(var(--table-header));
-    border-bottom: 2px solid hsl(var(--table-border));
+    border-bottom: 3px solid hsl(var(--border-strong));
+    box-shadow: 0 2px 4px hsl(var(--background) / 0.1);
   }
   
   .data-table-row:nth-child(even) {
@@ -703,6 +704,58 @@
   .nav-button:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+  }
+
+  /* Row number column styling */
+  .row-number-header {
+    background: hsl(var(--table-header));
+    text-align: center !important;
+    font-weight: 600;
+    border-right: none !important; /* Temporarily remove to test */
+    min-height: 40px; /* Ensure consistent header height even when empty */
+  }
+  
+  /* Ensure row number header cell has no conflicting borders */
+  .row-number-header-cell {
+    border-right: none !important;
+    border: none !important;
+  }
+  
+  .row-number-header-cell * {
+    border-right: none !important;
+  }
+  
+  /* Also ensure no borders from table cell styling */
+  th.row-number-header-cell.data-table-cell {
+    border: none !important;
+    border-right: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+  
+  /* Remove any pseudo-element borders */
+  .row-number-header-cell::before,
+  .row-number-header-cell::after,
+  .row-number-header::before,
+  .row-number-header::after {
+    border: none !important;
+    box-shadow: none !important;
+    content: none !important;
+  }
+  
+  
+  .row-number-cell {
+    background: hsl(var(--muted) / 0.3);
+    text-align: right !important;
+    font-family: 'JetBrains Mono', 'SF Mono', 'Monaco', 'Menlo', monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.6rem; /* Ultra-compact font size for maximum space efficiency */
+    font-weight: 500;
+    line-height: 1.2; /* Tighter line height for compactness */
+    color: hsl(var(--muted-foreground));
+    border-right: 2px solid hsl(var(--border-strong)) !important;
+    padding-left: 6px !important;
+    padding-right: 16px !important; /* Increased right padding to prevent cropping */
   }
 }
 
