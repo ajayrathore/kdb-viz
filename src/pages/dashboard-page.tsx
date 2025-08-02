@@ -4,9 +4,8 @@ import { VirtualDataGrid } from '@/components/virtual-data-grid';
 import { QueryExecutorSimple } from '@/components/query-executor-simple';
 import { ChartModal } from '@/components/chart-modal-plotly';
 import { ConnectionInput } from '@/components/connection-input';
-import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { Database, BarChart3 } from 'lucide-react';
+import { TrendingUp } from 'lucide-react';
 import { KdbTable, KdbQueryResult, ConnectionStatus } from '@/types/kdb';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 
@@ -108,7 +107,7 @@ export function DashboardPage({
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="flex items-center space-x-2">
-              <Database className="h-5 w-5 text-primary" />
+              <TrendingUp className="h-5 w-5 text-primary" />
               <h1 className="text-lg font-medium">KDB+ Visualizer</h1>
             </div>
             <ConnectionInput
@@ -121,17 +120,6 @@ export function DashboardPage({
           </div>
           
           <div className="flex items-center space-x-2">
-            {currentData && currentData.data.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsChartModalOpen(true)}
-              >
-                <BarChart3 className="h-4 w-4 mr-2" />
-                Open Chart
-              </Button>
-            )}
-            
             <ThemeToggle />
           </div>
         </div>
@@ -170,6 +158,9 @@ export function DashboardPage({
                 pageSize={pageSize}
                 totalRows={totalRows}
                 clientSidePagination={!selectedTable} // Use client-side for queries, server-side for tables
+                onOpenChart={() => setIsChartModalOpen(true)}
+                hasData={!!(currentData && currentData.data.length > 0)}
+                enableColumnControls={true}
               />
             </div>
           </Panel>

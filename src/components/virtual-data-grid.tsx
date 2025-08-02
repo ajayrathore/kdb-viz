@@ -11,9 +11,18 @@ import {
   type ColumnDef,
   ColumnResizeMode,
 } from '@tanstack/react-table';
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Search, Database, Loader2 } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Search, Database, Loader2, BarChart3, Download, Settings, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { KdbQueryResult } from '@/types/kdb';
 
 interface VirtualDataGridProps {
@@ -24,6 +33,9 @@ interface VirtualDataGridProps {
   pageSize?: number;
   totalRows?: number;
   clientSidePagination?: boolean; // Enable client-side pagination
+  onOpenChart?: () => void;
+  hasData?: boolean;
+  enableColumnControls?: boolean;
 }
 
 export function VirtualDataGrid({ 
@@ -33,16 +45,61 @@ export function VirtualDataGrid({
   currentPage = 0, 
   pageSize = 10000,
   totalRows = 0,
-  clientSidePagination = true
+  clientSidePagination = true,
+  onOpenChart,
+  hasData = false,
+  enableColumnControls = false
 }: VirtualDataGridProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
   const [clientPage, setClientPage] = useState(0);
   const [clientPageSize, setClientPageSize] = useState(10000);
+  const [columnVisibility, setColumnVisibility] = useState({});
   
   // Ref for virtual scrolling
   const tableContainerRef = useRef<HTMLDivElement>(null);
+
+  // CSV Export function
+  const exportToCSV = () => {
+    if (!data || !data.data.length) return;
+    
+    const visibleColumns = table.getVisibleLeafColumns();
+    const filteredRows = table.getFilteredRowModel().rows;
+    
+    // Generate headers
+    const headers = visibleColumns.map(col => {
+      const header = col.columnDef.header;
+      return typeof header === 'string' ? header : data.columns[parseInt(col.id)];
+    });
+    
+    // Generate CSV content
+    const csvContent = [
+      headers.join(','),
+      ...filteredRows.map(row => 
+        visibleColumns.map(col => {
+          const value = row.getValue(col.id);
+          if (value === null || value === undefined) return '';
+          const stringValue = String(value);
+          // Escape values containing commas, quotes, or newlines
+          return stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')
+            ? `"${stringValue.replace(/"/g, '""')}"` 
+            : stringValue;
+        }).join(',')
+      )
+    ].join('\n');
+    
+    // Download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `kdb-export-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   const columns = useMemo<ColumnDef<any>[]>(() => {
     if (!data || !data.columns) return [];
@@ -105,6 +162,7 @@ export function VirtualDataGrid({
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
+    onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -116,6 +174,7 @@ export function VirtualDataGrid({
       sorting,
       columnFilters,
       globalFilter,
+      columnVisibility,
     },
   });
 
@@ -196,20 +255,86 @@ export function VirtualDataGrid({
                 className="pl-10 w-64"
               />
             </div>
-            <div className="text-sm text-muted-foreground">
-              {clientSidePagination && totalDataRows > clientPageSize ? (
-                <>
-                  Showing {Math.min(clientPageSize, rows.length).toLocaleString()} rows
-                  {` (page ${clientPage + 1} of ${totalPages})`}
-                  {` from ${totalDataRows.toLocaleString()} total`}
-                </>
-              ) : (
-                <>
-                  Showing {rows.length.toLocaleString()} rows
-                  {totalDataRows > 0 && ` of ${totalDataRows.toLocaleString()} total`}
-                </>
+            <div className="flex items-center space-x-2">
+              <div className="text-sm text-muted-foreground">
+                {clientSidePagination && totalDataRows > clientPageSize ? (
+                  <>
+                    Showing {Math.min(clientPageSize, rows.length).toLocaleString()} rows
+                    {` (page ${clientPage + 1} of ${totalPages})`}
+                    {` from ${totalDataRows.toLocaleString()} total`}
+                  </>
+                ) : (
+                  <>
+                    Showing {rows.length.toLocaleString()} rows
+                    {totalDataRows > 0 && ` of ${totalDataRows.toLocaleString()} total`}
+                  </>
+                )}
+                {globalFilter && ` (filtered)`}
+              </div>
+              
+              {/* Action Icons */}
+              {hasData && (
+                <div className="flex items-center space-x-1 ml-4">
+                  {/* Chart Button */}
+                  {onOpenChart && (
+                    <button
+                      onClick={onOpenChart}
+                      className="p-1.5 text-muted-foreground hover:text-primary transition-colors rounded"
+                      title="Open Chart Visualization"
+                    >
+                      <BarChart3 className="h-4 w-4" />
+                    </button>
+                  )}
+                  
+                  {/* CSV Export Button */}
+                  <button
+                    onClick={exportToCSV}
+                    className="p-1.5 text-muted-foreground hover:text-primary transition-colors rounded"
+                    title="Export Data as CSV"
+                  >
+                    <Download className="h-4 w-4" />
+                  </button>
+                  
+                  {/* Column Management Dropdown */}
+                  {enableColumnControls && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          className="p-1.5 text-muted-foreground hover:text-primary transition-colors rounded"
+                          title="Manage Columns"
+                        >
+                          <Settings className="h-4 w-4" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuLabel>Column Visibility</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        {table.getAllColumns()
+                          .filter(column => column.getCanHide())
+                          .map((column) => {
+                            const columnIndex = parseInt(column.id);
+                            const columnName = data?.columns[columnIndex] || `Column ${columnIndex + 1}`;
+                            return (
+                              <DropdownMenuCheckboxItem
+                                key={column.id}
+                                className="capitalize"
+                                checked={column.getIsVisible()}
+                                onCheckedChange={(value) => column.toggleVisibility(!!value)}
+                              >
+                                {columnName}
+                              </DropdownMenuCheckboxItem>
+                            );
+                          })}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => table.resetColumnVisibility()}>
+                          <EyeOff className="mr-2 h-4 w-4" />
+                          Reset Visibility
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
               )}
-              {globalFilter && ` (filtered)`}
             </div>
           </div>
           

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Database } from 'lucide-react';
+import { TrendingUp } from 'lucide-react';
 import { useAppLoader } from '@/hooks/use-app-loader';
 
 interface LoadingScreenProps {
@@ -34,7 +34,7 @@ export function LoadingScreen({ onComplete }: LoadingScreenProps) {
           {/* Main logo with pulsing animation */}
           <div className="relative">
             <div className="flex items-center justify-center w-20 h-20 rounded-3xl bg-primary/10 border-2 border-primary/20">
-              <Database className="h-10 w-10 text-primary simple-pulse" />
+              <TrendingUp className="h-10 w-10 text-primary simple-pulse" />
             </div>
             
             {/* Subtle glow effect */}
