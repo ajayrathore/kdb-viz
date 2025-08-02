@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { DashboardPage } from '@/pages/dashboard-page'
 import { useKdbConnection } from '@/hooks/use-kdb-connection'
 import { ThemeProvider } from '@/contexts/theme-context'
+import { LoadingScreen } from '@/components/loading-screen'
+import { useAppLoader } from '@/hooks/use-app-loader'
 
-function App() {
+function AppContent() {
   const { status, error, connect, disconnect, tables, executeQuery, getTableData } = useKdbConnection()
   const [connectionData, setConnectionData] = useState<{host: string; port: number} | null>(null)
 
@@ -21,17 +23,36 @@ function App() {
   }
 
   return (
+    <DashboardPage
+      connectionData={connectionData}
+      connectionStatus={status}
+      connectionError={error}
+      tables={tables}
+      onConnect={handleConnect}
+      onDisconnect={handleDisconnect}
+      executeQuery={executeQuery}
+      getTableData={getTableData}
+    />
+  )
+}
+
+function App() {
+  const { isLoading } = useAppLoader({
+    minimumDuration: 2000, // 2 seconds minimum for the nice animation
+    maximumDuration: 4000, // 4 seconds maximum to prevent infinite loading
+  })
+  const [showApp, setShowApp] = useState(false)
+
+  const handleLoadingComplete = () => {
+    setShowApp(true)
+  }
+
+  return (
     <ThemeProvider>
-      <DashboardPage
-        connectionData={connectionData}
-        connectionStatus={status}
-        connectionError={error}
-        tables={tables}
-        onConnect={handleConnect}
-        onDisconnect={handleDisconnect}
-        executeQuery={executeQuery}
-        getTableData={getTableData}
-      />
+      {(isLoading || !showApp) && (
+        <LoadingScreen onComplete={handleLoadingComplete} />
+      )}
+      {showApp && <AppContent />}
     </ThemeProvider>
   )
 }
