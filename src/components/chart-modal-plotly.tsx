@@ -40,7 +40,8 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
     xColumn: '',
     yColumn: '',
     yColumns: [],
-    title: 'Data Visualization'
+    title: 'Data Visualization',
+    stackedArea: false
   });
   const [showSettings, setShowSettings] = useState(false);
   const [chartDimensions, setChartDimensions] = useState({ width: 1200, height: 700 });
@@ -178,28 +179,103 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
       // Prepare traces for each Y column
       const traces: any[] = [];
       
-      chartConfig.yColumns.forEach((yColumn, index) => {
-        const yColumnIndex = data.columns.indexOf(yColumn);
-        if (yColumnIndex === -1) return;
+      // For stacked area charts, we need to calculate cumulative values
+      let stackedData: number[][] = []; // [dataPointIndex][seriesIndex] = cumulativeValue
+      
+      if (chartConfig.type === 'area' && chartConfig.stackedArea) {
+        // First pass: collect all series data in aligned format
+        const allSeriesData: { x: any; y: number; }[][] = [];
         
-        const seriesData = data.data
-          .map(row => ({ x: row[xColumnIndex], y: row[yColumnIndex] }))
-          .filter(d => d.x != null && d.y != null);
-        
-        if (seriesData.length === 0) return;
-        
-        const xData = seriesData.map(d => d.x);
-        const yData = seriesData.map(d => d.y);
-        const color = colors[index % colors.length];
-        
-        traces.push({
-          x: xData,
-          y: yData,
-          name: yColumn,
-          line: { color: color, width: 2 },
-          marker: { color: color, size: 6 }
+        // Get unique X values across all series (sorted)
+        const xValueSet = new Set();
+        chartConfig.yColumns.forEach(yColumn => {
+          const yColumnIndex = data.columns.indexOf(yColumn);
+          if (yColumnIndex !== -1) {
+            data.data.forEach(row => {
+              if (row[xColumnIndex] != null && row[yColumnIndex] != null) {
+                xValueSet.add(row[xColumnIndex]);
+              }
+            });
+          }
         });
-      });
+        
+        const uniqueXValues = Array.from(xValueSet).sort();
+        
+        // Align all series to the same X values
+        chartConfig.yColumns.forEach(yColumn => {
+          const yColumnIndex = data.columns.indexOf(yColumn);
+          if (yColumnIndex === -1) return;
+          
+          const seriesDataMap = new Map();
+          data.data.forEach(row => {
+            if (row[xColumnIndex] != null && row[yColumnIndex] != null) {
+              seriesDataMap.set(row[xColumnIndex], Number(row[yColumnIndex]) || 0);
+            }
+          });
+          
+          const alignedSeries = uniqueXValues.map(xVal => ({
+            x: xVal,
+            y: seriesDataMap.get(xVal) || 0
+          }));
+          
+          allSeriesData.push(alignedSeries);
+        });
+        
+        // Calculate cumulative values
+        stackedData = uniqueXValues.map((_, dataIndex) => {
+          const cumulativeAtPoint: number[] = [];
+          let runningSum = 0;
+          
+          allSeriesData.forEach((series) => {
+            runningSum += series[dataIndex].y;
+            cumulativeAtPoint.push(runningSum);
+          });
+          
+          return cumulativeAtPoint;
+        });
+        
+        // Create traces with cumulative data
+        chartConfig.yColumns.forEach((yColumn, index) => {
+          if (index >= allSeriesData.length) return;
+          
+          const xData = allSeriesData[index].map(d => d.x);
+          const yData = stackedData.map(point => point[index]);
+          const color = colors[index % colors.length];
+          
+          traces.push({
+            x: xData,
+            y: yData,
+            name: yColumn,
+            line: { color: color, width: 2 },
+            marker: { color: color, size: 6 },
+            originalY: allSeriesData[index].map(d => d.y) // Store original values for tooltips
+          });
+        });
+      } else {
+        // Normal (non-stacked) processing
+        chartConfig.yColumns.forEach((yColumn, index) => {
+          const yColumnIndex = data.columns.indexOf(yColumn);
+          if (yColumnIndex === -1) return;
+          
+          const seriesData = data.data
+            .map(row => ({ x: row[xColumnIndex], y: row[yColumnIndex] }))
+            .filter(d => d.x != null && d.y != null);
+          
+          if (seriesData.length === 0) return;
+          
+          const xData = seriesData.map(d => d.x);
+          const yData = seriesData.map(d => d.y);
+          const color = colors[index % colors.length];
+          
+          traces.push({
+            x: xData,
+            y: yData,
+            name: yColumn,
+            line: { color: color, width: 2 },
+            marker: { color: color, size: 6 }
+          });
+        });
+      }
       
       if (traces.length === 0) return;
 
@@ -230,8 +306,25 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
           case 'area':
             trace.type = 'scatter';
             trace.mode = 'lines';
-            trace.fill = index === 0 ? 'tozeroy' : 'tonexty';
-            trace.fillcolor = trace.line.color.replace(')', ', 0.3)').replace('rgb', 'rgba');
+            
+            if (chartConfig.stackedArea) {
+              // For stacked areas, all traces except the first fill to the previous trace
+              trace.fill = index === 0 ? 'tozeroy' : 'tonexty';
+              trace.fillcolor = trace.line.color.replace(')', ', 0.7)').replace('rgb', 'rgba');
+              
+              // Add custom hover template to show both original and cumulative values
+              if (trace.originalY) {
+                trace.hovertemplate = `<b>${trace.name}</b><br>` +
+                  `Value: %{customdata}<br>` +
+                  `Cumulative: %{y}<br>` +
+                  `<extra></extra>`;
+                trace.customdata = trace.originalY;
+              }
+            } else {
+              // For overlapping areas, use the original logic
+              trace.fill = index === 0 ? 'tozeroy' : 'tonexty';
+              trace.fillcolor = trace.line.color.replace(')', ', 0.3)').replace('rgb', 'rgba');
+            }
             break;
           case 'candlestick':
             // Detect if we have 4 OHLC columns or single price column
@@ -800,6 +893,43 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
                 />
               </div>
             </div>
+
+            {/* Area Chart Specific Options */}
+            {chartConfig.type === 'area' && (
+              <div className="mt-4 pt-4 border-t border-border">
+                <div className="flex items-center space-x-3">
+                  <label className="text-sm font-medium text-foreground">Area Chart Style:</label>
+                  <div className="flex items-center space-x-4">
+                    <label className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="areaStyle"
+                        checked={!chartConfig.stackedArea}
+                        onChange={() => setChartConfig(prev => ({ ...prev, stackedArea: false }))}
+                        className="text-primary focus:ring-primary"
+                      />
+                      <span className="text-sm text-foreground">Overlapping</span>
+                    </label>
+                    <label className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="areaStyle"
+                        checked={chartConfig.stackedArea || false}
+                        onChange={() => setChartConfig(prev => ({ ...prev, stackedArea: true }))}
+                        className="text-primary focus:ring-primary"
+                      />
+                      <span className="text-sm text-foreground">Stacked</span>
+                    </label>
+                  </div>
+                  <div className="text-xs text-muted-foreground ml-2">
+                    {chartConfig.stackedArea 
+                      ? "Shows cumulative values - each series adds to the total"
+                      : "Shows overlapping areas - good for comparing trends"
+                    }
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

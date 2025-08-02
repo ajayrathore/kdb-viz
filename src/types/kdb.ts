@@ -56,6 +56,8 @@ export interface ChartConfig {
   yColumns: string[];  // New: support multiple Y columns
   colorColumn?: string;
   title?: string;
+  // Area chart stacking option
+  stackedArea?: boolean;
   // Additional fields for OHLC charts
   openColumn?: string;
   highColumn?: string;
