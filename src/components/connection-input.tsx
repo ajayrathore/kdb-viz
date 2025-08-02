@@ -8,16 +8,20 @@ interface ConnectionInputProps {
   connectionData: { host: string; port: number } | null;
   connectionStatus: ConnectionStatus;
   connectionError: string | null;
-  onConnect: (host: string, port: number) => Promise<boolean>;
+  browseTables: boolean;
+  onConnect: (host: string, port: number, browseTables: boolean) => Promise<boolean>;
   onDisconnect: () => void;
+  onBrowseTablesChange: (enabled: boolean) => void;
 }
 
 export function ConnectionInput({
   connectionData,
   connectionStatus,
   connectionError,
+  browseTables,
   onConnect,
   onDisconnect,
+  onBrowseTablesChange,
 }: ConnectionInputProps) {
   const [hostPort, setHostPort] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
@@ -50,7 +54,7 @@ export function ConnectionInput({
 
     setIsConnecting(true);
     try {
-      await onConnect(host, port);
+      await onConnect(host, port, browseTables);
     } finally {
       setIsConnecting(false);
     }
@@ -98,7 +102,7 @@ export function ConnectionInput({
   };
 
   return (
-    <div className="flex items-center space-x-2">
+    <div className="flex items-center space-x-3">
       <div className="flex items-center space-x-2">
         {getStatusIcon()}
         <span className="text-sm text-muted-foreground min-w-[80px]">
@@ -142,6 +146,24 @@ export function ConnectionInput({
             )}
           </Button>
         )}
+      </div>
+
+      {/* Browse Tables Checkbox */}
+      <div className="flex items-center space-x-2">
+        <input
+          type="checkbox"
+          id="browse-tables"
+          checked={browseTables}
+          onChange={(e) => onBrowseTablesChange(e.target.checked)}
+          className="h-4 w-4 rounded border border-input bg-background ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
+        />
+        <label 
+          htmlFor="browse-tables" 
+          className="text-sm font-medium leading-none cursor-pointer"
+          title="Load and display table list"
+        >
+          Browse Tables
+        </label>
       </div>
       
       {connectionError && connectionStatus === 'error' && (

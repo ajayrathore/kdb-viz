@@ -11,17 +11,10 @@ import {
   type ColumnDef,
   ColumnResizeMode,
 } from '@tanstack/react-table';
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Search, Database, Loader2, BarChart3, Download, Settings, EyeOff, GripVertical, RotateCcw, PanelLeft } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Search, Database, Loader2, BarChart3, Download, Settings, GripVertical, PanelLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { ColumnManagementModal } from '@/components/column-management-modal';
 import { KdbQueryResult } from '@/types/kdb';
 
 interface VirtualDataGridProps {
@@ -62,6 +55,7 @@ export function VirtualDataGrid({
   const [columnOrder, setColumnOrder] = useState<string[]>([]);
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
   const [dropdownDraggedColumn, setDropdownDraggedColumn] = useState<string | null>(null);
+  const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
   
   // Ref for virtual scrolling
   const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -424,7 +418,7 @@ export function VirtualDataGrid({
               
               {/* Action Icons */}
               <div className="flex items-center space-x-1 ml-4">
-                {/* Show Sidebar Button - only when sidebar is hidden */}
+                {/* Show Sidebar Button - only when sidebar is hidden and onShowSidebar is available */}
                 {!isSidebarVisible && onShowSidebar && (
                   <button
                     onClick={onShowSidebar}
@@ -457,64 +451,15 @@ export function VirtualDataGrid({
                     <Download className="h-5 w-5" />
                   </button>
                   
-                  {/* Column Management Dropdown */}
+                  {/* Column Management Button */}
                   {enableColumnControls && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          className="icon-3d icon-3d-settings p-2 rounded-md"
-                          title="Manage Columns"
-                        >
-                          <Settings className="h-5 w-5" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-72">
-                        <DropdownMenuLabel>Column Visibility</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        {columnOrder.map((columnId) => {
-                          const column = table.getColumn(columnId);
-                          if (!column || !column.getCanHide()) return null;
-                          
-                          const columnIndex = parseInt(columnId);
-                          const columnName = data?.columns[columnIndex] || `Column ${columnIndex + 1}`;
-                          const isDragging = dropdownDraggedColumn === columnId;
-                          
-                          return (
-                            <div
-                              key={columnId}
-                              className={`dropdown-drag-item flex items-center px-2 py-1.5 text-sm cursor-pointer select-none ${
-                                isDragging ? 'dragging' : ''
-                              }`}
-                              draggable
-                              onDragStart={(e) => handleDropdownDragStart(e, columnId)}
-                              onDragOver={handleDropdownDragOver}
-                              onDrop={(e) => handleDropdownDrop(e, columnId)}
-                              onDragEnd={handleDropdownDragEnd}
-                            >
-                              <GripVertical className="dropdown-drag-handle h-3 w-3 text-muted-foreground mr-2 flex-shrink-0" />
-                              <div className="flex items-center space-x-2 flex-1 min-w-0">
-                                <input
-                                  type="checkbox"
-                                  checked={column.getIsVisible()}
-                                  onChange={(e) => column.toggleVisibility(e.target.checked)}
-                                  className="h-4 w-4 rounded border border-input bg-background ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                                />
-                                <span className="capitalize truncate">{columnName}</span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => table.resetColumnVisibility()}>
-                          <EyeOff className="mr-2 h-4 w-4" />
-                          Reset Visibility
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={resetColumnOrder}>
-                          <RotateCcw className="mr-2 h-4 w-4" />
-                          Reset Column Order
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <button
+                      onClick={() => setIsColumnModalOpen(true)}
+                      className="icon-3d icon-3d-settings p-2 rounded-md"
+                      title="Manage Columns"
+                    >
+                      <Settings className="h-5 w-5" />
+                    </button>
                   )}
                   </>
                 )}
@@ -704,6 +649,21 @@ export function VirtualDataGrid({
           </tbody>
         </table>
       </div>
+
+      {/* Column Management Modal */}
+      <ColumnManagementModal
+        isOpen={isColumnModalOpen}
+        onClose={() => setIsColumnModalOpen(false)}
+        columnOrder={columnOrder}
+        table={table}
+        data={data}
+        dropdownDraggedColumn={dropdownDraggedColumn}
+        handleDropdownDragStart={handleDropdownDragStart}
+        handleDropdownDragOver={handleDropdownDragOver}
+        handleDropdownDrop={handleDropdownDrop}
+        handleDropdownDragEnd={handleDropdownDragEnd}
+        resetColumnOrder={resetColumnOrder}
+      />
     </div>
   );
 }

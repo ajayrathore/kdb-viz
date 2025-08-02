@@ -23,15 +23,17 @@ export function useKdbConnection() {
     };
   }, []);
 
-  const connect = useCallback(async (host: string, port: number) => {
+  const connect = useCallback(async (host: string, port: number, browseTables: boolean = false) => {
     if (!serviceRef.current) return false;
     
     try {
       setError(null);
       const success = await serviceRef.current.connect(host, port);
-      if (success) {
+      if (success && browseTables) {
         const tablesList = await serviceRef.current.getTables();
         setTables(tablesList);
+      } else if (success && !browseTables) {
+        setTables([]); // Clear tables if not browsing
       }
       return success;
     } catch (err) {

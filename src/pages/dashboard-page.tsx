@@ -14,10 +14,11 @@ interface DashboardPageProps {
   connectionStatus: ConnectionStatus;
   connectionError: string | null;
   tables: KdbTable[];
-  onConnect: (host: string, port: number) => Promise<boolean>;
+  onConnect: (host: string, port: number, browseTables: boolean) => Promise<boolean>;
   onDisconnect: () => void;
   executeQuery: (query: string) => Promise<KdbQueryResult>;
   getTableData: (tableName: string, offset: number, limit: number) => Promise<KdbQueryResult>;
+  refreshTables: () => Promise<void>;
 }
 
 export function DashboardPage({
@@ -29,6 +30,7 @@ export function DashboardPage({
   onDisconnect,
   executeQuery,
   getTableData,
+  refreshTables,
 }: DashboardPageProps) {
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
   const [currentData, setCurrentData] = useState<KdbQueryResult | null>(null);
@@ -39,6 +41,7 @@ export function DashboardPage({
   const [isChartModalOpen, setIsChartModalOpen] = useState(false);
   const [, setLastExecutedQuery] = useState<string | null>(null);
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+  const [browseTables, setBrowseTables] = useState(false);
 
   const totalRows = selectedTable 
     ? tables.find(t => t.name === selectedTable)?.rowCount || 0 
@@ -48,10 +51,10 @@ export function DashboardPage({
     setIsSidebarVisible(prev => !prev);
   }, []);
 
-  // Keyboard shortcut handler
+  // Keyboard shortcut handler (only when browsing tables)
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key === 'b') {
+      if (browseTables && (event.ctrlKey || event.metaKey) && event.key === 'b') {
         event.preventDefault();
         toggleSidebar();
       }
@@ -59,7 +62,7 @@ export function DashboardPage({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [toggleSidebar]);
+  }, [toggleSidebar, browseTables]);
 
   // Responsive behavior - auto-hide sidebar on mobile
   useEffect(() => {
@@ -117,12 +120,35 @@ export function DashboardPage({
     }
   };
 
-  // Load first table by default when connected
+  // Load first table by default when connected and browsing tables
   useEffect(() => {
-    if (connectionStatus === 'connected' && tables.length > 0 && !selectedTable) {
+    if (connectionStatus === 'connected' && browseTables && tables.length > 0 && !selectedTable) {
       handleTableSelect(tables[0].name);
     }
-  }, [tables, connectionStatus]);
+  }, [tables, connectionStatus, browseTables]);
+
+  // Handle browseTables toggle while connected
+  useEffect(() => {
+    const handleBrowseTablesChange = async () => {
+      if (connectionStatus === 'connected') {
+        if (browseTables && tables.length === 0) {
+          // Fetch tables when enabling browsing while connected
+          try {
+            await refreshTables();
+            setSelectedTable(null); // Clear any selected table
+          } catch (error) {
+            console.error('Failed to fetch tables:', error);
+          }
+        } else if (!browseTables) {
+          // Clear table selection when disabling browsing
+          setSelectedTable(null);
+          setCurrentData(null);
+        }
+      }
+    };
+
+    handleBrowseTablesChange();
+  }, [browseTables, connectionStatus, tables.length, refreshTables]);
 
   // Clear data when connection status changes
   useEffect(() => {
@@ -149,8 +175,10 @@ export function DashboardPage({
               connectionData={connectionData}
               connectionStatus={connectionStatus}
               connectionError={connectionError}
+              browseTables={browseTables}
               onConnect={onConnect}
               onDisconnect={onDisconnect}
+              onBrowseTablesChange={setBrowseTables}
             />
           </div>
           
@@ -168,7 +196,7 @@ export function DashboardPage({
 
       {/* Main Content */}
       <div className="flex-1 overflow-hidden">
-        {isSidebarVisible ? (
+        {browseTables && isSidebarVisible ? (
           <PanelGroup direction="horizontal" className="h-full">
             {/* Left Sidebar Panel */}
             <Panel defaultSize={20} minSize={15} maxSize={40}>
@@ -198,8 +226,8 @@ export function DashboardPage({
                   onOpenChart={() => setIsChartModalOpen(true)}
                   hasData={!!(currentData && currentData.data.length > 0)}
                   enableColumnControls={true}
-                  isSidebarVisible={isSidebarVisible}
-                  onShowSidebar={toggleSidebar}
+                  isSidebarVisible={browseTables && isSidebarVisible}
+                  onShowSidebar={browseTables ? toggleSidebar : undefined}
                 />
               </div>
             </Panel>
@@ -218,8 +246,8 @@ export function DashboardPage({
               onOpenChart={() => setIsChartModalOpen(true)}
               hasData={!!(currentData && currentData.data.length > 0)}
               enableColumnControls={true}
-              isSidebarVisible={isSidebarVisible}
-              onShowSidebar={toggleSidebar}
+              isSidebarVisible={browseTables && isSidebarVisible}
+              onShowSidebar={browseTables ? toggleSidebar : undefined}
             />
           </div>
         )}

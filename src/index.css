@@ -380,6 +380,37 @@
     animation: iconPulse 1.5s infinite;
   }
   
+  /* ========================================
+     COLUMN MANAGEMENT DROPDOWN
+     ======================================== */
+  
+  /* Column management dropdown container - force maximum height */
+  .column-management-dropdown {
+    max-height: 95vh !important;
+    height: auto !important;
+    width: 300px !important;
+    overflow: hidden !important;
+  }
+  
+  /* Column list scrollable area - use most of viewport */
+  .column-list-scroll {
+    max-height: 85vh !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+  
+  /* Force dropdown to ignore collision detection and positioning constraints */
+  .column-management-dropdown[data-state="open"] {
+    max-height: 95vh !important;
+    height: auto !important;
+    transform-origin: top !important;
+  }
+  
+  /* Override any Radix positioning constraints */
+  .column-management-dropdown {
+    --radix-dropdown-menu-content-available-height: 95vh !important;
+  }
+  
   /* Logo icon for header */
   .icon-3d-logo {
     background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 33%, #6366f1 66%, #8b5cf6 100%);

@@ -6,11 +6,11 @@ import { LoadingScreen } from '@/components/loading-screen'
 import { useAppLoader } from '@/hooks/use-app-loader'
 
 function AppContent() {
-  const { status, error, connect, disconnect, tables, executeQuery, getTableData } = useKdbConnection()
+  const { status, error, connect, disconnect, tables, executeQuery, getTableData, refreshTables } = useKdbConnection()
   const [connectionData, setConnectionData] = useState<{host: string; port: number} | null>(null)
 
-  const handleConnect = async (host: string, port: number) => {
-    const success = await connect(host, port)
+  const handleConnect = async (host: string, port: number, browseTables: boolean = false) => {
+    const success = await connect(host, port, browseTables)
     if (success) {
       setConnectionData({ host, port })
     }
@@ -32,6 +32,7 @@ function AppContent() {
       onDisconnect={handleDisconnect}
       executeQuery={executeQuery}
       getTableData={getTableData}
+      refreshTables={refreshTables}
     />
   )
 }
