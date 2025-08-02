@@ -51,18 +51,27 @@ export function DashboardPage({
     setIsSidebarVisible(prev => !prev);
   }, []);
 
-  // Keyboard shortcut handler (only when browsing tables)
+  // Keyboard shortcut handler
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (browseTables && (event.ctrlKey || event.metaKey) && event.key === 'b') {
+      const isCtrlCmd = event.ctrlKey || event.metaKey;
+      
+      // Ctrl/Cmd + B: Toggle sidebar (only when browsing tables)
+      if (browseTables && isCtrlCmd && event.key === 'b') {
         event.preventDefault();
         toggleSidebar();
+      }
+      
+      // Ctrl/Cmd + C: Open chart modal (when data is available)
+      if (isCtrlCmd && event.key === 'c' && currentData && currentData.data.length > 0) {
+        event.preventDefault();
+        setIsChartModalOpen(true);
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [toggleSidebar, browseTables]);
+  }, [toggleSidebar, browseTables, currentData, setIsChartModalOpen]);
 
   // Responsive behavior - auto-hide sidebar on mobile
   useEffect(() => {

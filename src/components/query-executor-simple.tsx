@@ -1,11 +1,30 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Clock, AlertCircle, Code } from 'lucide-react';
+import { AlertCircle, Code, FolderOpen, Plus, X, FileText, Download } from 'lucide-react';
 import { KdbQueryResult } from '@/types/kdb';
+import { 
+  loadMultipleFiles, 
+  saveFileContent, 
+  generateSuggestedFileName,
+  addRecentFile,
+  handleFileDrop,
+  handleDragOver,
+  isFileSystemAccessSupported
+} from '@/lib/file-utils';
 
 interface QueryExecutorSimpleProps {
   onExecuteQuery: (query: string) => Promise<KdbQueryResult>;
   isExecuting: boolean;
+}
+
+interface QueryTab {
+  id: string;
+  name: string;
+  query: string;
+  isModified: boolean;
+  filePath?: string;
+  fileName?: string;
+  createdAt: Date;
 }
 
 // Query parsing types and interfaces
@@ -109,14 +128,99 @@ const getSelectedOrCurrentQuery = (
 };
 
 export function QueryExecutorSimple({ onExecuteQuery, isExecuting }: QueryExecutorSimpleProps) {
-  const [query, setQuery] = useState('');
-  const [queryHistory, setQueryHistory] = useState<string[]>([]);
+  // Helper to generate unique IDs
+  const generateTabId = () => `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+  // Create initial tab outside of state to ensure consistency
+  const initialTab = useMemo<QueryTab>(() => ({
+    id: generateTabId(),
+    name: 'Query 1',
+    query: '',
+    isModified: false,
+    createdAt: new Date()
+  }), []);
+
+  // Tab management state with initial tab
+  const [tabs, setTabs] = useState<QueryTab[]>([initialTab]);
+  const [activeTabId, setActiveTabId] = useState<string>(initialTab.id);
   const [error, setError] = useState<string | null>(null);
-  const [showHistory, setShowHistory] = useState(false);
   const [currentQueryInfo, setCurrentQueryInfo] = useState<{index: number, total: number, selectedText?: string} | null>(null);
+  
+  // File operation state
   
   // Textarea reference for selection handling
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Hidden file input for file operations
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Get active tab
+  const activeTab = tabs.find(tab => tab.id === activeTabId);
+  const query = activeTab?.query || '';
+
+
+  // Tab management functions
+  const createNewTab = (name?: string, content?: string, filePath?: string, fileName?: string) => {
+    const newTab: QueryTab = {
+      id: generateTabId(),
+      name: name || fileName || `Query ${tabs.length + 1}`,
+      query: content || '',
+      isModified: false,
+      filePath,
+      fileName,
+      createdAt: new Date()
+    };
+    
+    setTabs(prev => [...prev, newTab]);
+    setActiveTabId(newTab.id);
+    return newTab;
+  };
+
+  const closeTab = (tabId: string) => {
+    const tabToClose = tabs.find(tab => tab.id === tabId);
+    if (!tabToClose) return;
+    
+    // Check if tab has unsaved changes
+    if (tabToClose.isModified) {
+      const shouldClose = window.confirm(`Tab "${tabToClose.name}" has unsaved changes. Close anyway?`);
+      if (!shouldClose) return;
+    }
+    
+    const newTabs = tabs.filter(tab => tab.id !== tabId);
+    setTabs(newTabs);
+    
+    // Switch to another tab if the closed tab was active
+    if (activeTabId === tabId) {
+      if (newTabs.length > 0) {
+        const tabIndex = tabs.findIndex(tab => tab.id === tabId);
+        const nextTab = newTabs[Math.max(0, tabIndex - 1)];
+        setActiveTabId(nextTab.id);
+      } else {
+        // Create a new tab if no tabs remain
+        createNewTab();
+      }
+    }
+  };
+
+  const switchToTab = (tabId: string) => {
+    setActiveTabId(tabId);
+  };
+
+  const updateTabQuery = (tabId: string, newQuery: string) => {
+    setTabs(prev => prev.map(tab => 
+      tab.id === tabId 
+        ? { ...tab, query: newQuery, isModified: true }
+        : tab
+    ));
+  };
+
+
+  const markTabAsSaved = (tabId: string, filePath?: string, fileName?: string) => {
+    setTabs(prev => prev.map(tab => 
+      tab.id === tabId 
+        ? { ...tab, isModified: false, filePath, fileName, name: fileName || tab.name }
+        : tab
+    ));
+  };
 
   // Enhanced execution function for smart query selection
   const executeQuery = async (queryToExecute: string) => {
@@ -125,11 +229,6 @@ export function QueryExecutorSimple({ onExecuteQuery, isExecuting }: QueryExecut
     try {
       setError(null);
       await onExecuteQuery(queryToExecute);
-      
-      // Add individual query to history if not already present
-      if (!queryHistory.includes(queryToExecute)) {
-        setQueryHistory(prev => [queryToExecute, ...prev.slice(0, 9)]); // Keep last 10 queries
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Query execution failed');
     }
@@ -161,6 +260,82 @@ export function QueryExecutorSimple({ onExecuteQuery, isExecuting }: QueryExecut
     await handleExecuteSelected();
   };
 
+  // File operations
+  const handleLoadFile = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    try {
+      const results = await loadMultipleFiles(files);
+      
+      for (const result of results) {
+        // Check if file is already open
+        const existingTab = tabs.find(tab => tab.fileName === result.fileName);
+        if (existingTab) {
+          // Switch to existing tab
+          switchToTab(existingTab.id);
+        } else {
+          // Create new tab for file
+          createNewTab(undefined, result.content, result.filePath, result.fileName);
+        }
+        
+        // Add to recent files
+        addRecentFile(result.fileName);
+      }
+      setError(null);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to load file(s)');
+    }
+    
+    // Reset file input
+    event.target.value = '';
+  };
+
+  const handleSaveAsFile = async () => {
+    if (!activeTab || !activeTab.query.trim()) {
+      setError('Cannot save empty query');
+      return;
+    }
+
+    try {
+      const suggestedName = generateSuggestedFileName(
+        activeTab.query, 
+        activeTab.fileName || activeTab.name
+      );
+      
+      const result = await saveFileContent({
+        content: activeTab.query,
+        suggestedName
+      });
+      
+      if (result.success) {
+        // Mark tab as saved
+        markTabAsSaved(activeTab.id, undefined, result.fileName);
+        addRecentFile(result.fileName || suggestedName);
+        setError(null);
+        
+        // Show success message for File System Access API
+        if (isFileSystemAccessSupported()) {
+          console.log(`File saved successfully: ${result.fileName}`);
+        }
+      } else if (result.cancelled) {
+        // User cancelled the save dialog
+        setError(null); // Don't show error for user cancellation
+      } else {
+        setError(result.error || 'Failed to save file');
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to save file');
+    }
+  };
+
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     const isCtrlCmd = e.ctrlKey || e.metaKey;
     
@@ -170,6 +345,68 @@ export function QueryExecutorSimple({ onExecuteQuery, isExecuting }: QueryExecut
     } else if (isCtrlCmd && e.key.toLowerCase() === 'e') {
       e.preventDefault();
       handleExecuteSelected();
+    } else if (isCtrlCmd && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      handleSaveAsFile();
+    } else if (isCtrlCmd && e.key.toLowerCase() === 'o') {
+      e.preventDefault();
+      handleLoadFile();
+    } else if (isCtrlCmd && e.key.toLowerCase() === 'n') {
+      e.preventDefault();
+      createNewTab();
+    } else if (isCtrlCmd && e.key.toLowerCase() === 'w') {
+      e.preventDefault();
+      if (activeTab) {
+        closeTab(activeTab.id);
+      }
+    }
+  };
+
+  // Handle query content changes
+  const handleQueryChange = (newQuery: string) => {
+    if (activeTab) {
+      updateTabQuery(activeTab.id, newQuery);
+    }
+  };
+
+  // Drag and drop handlers
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDragOverEvent = (e: React.DragEvent) => {
+    handleDragOver(e.nativeEvent);
+  };
+
+  const handleDropEvent = async (e: React.DragEvent) => {
+    try {
+      const files = handleFileDrop(e.nativeEvent);
+      if (files.length === 0) {
+        setError('No supported files found. Supported: .q, .kdb, .txt');
+        return;
+      }
+
+      const results = await loadMultipleFiles(files as any as FileList);
+      
+      for (const result of results) {
+        // Check if file is already open
+        const existingTab = tabs.find(tab => tab.fileName === result.fileName);
+        if (existingTab) {
+          switchToTab(existingTab.id);
+        } else {
+          createNewTab(undefined, result.content, result.filePath, result.fileName);
+        }
+        addRecentFile(result.fileName);
+      }
+      setError(null);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Failed to load dropped files');
     }
   };
 
@@ -221,25 +458,10 @@ export function QueryExecutorSimple({ onExecuteQuery, isExecuting }: QueryExecut
     updateCurrentQueryInfo();
   };
 
-  const insertFromHistory = (historicalQuery: string) => {
-    setQuery(historicalQuery);
-    setShowHistory(false);
-  };
-
-  const commonQueries = [
-    'tables[]',
-    'meta trades',
-    'select from trades',
-    'select count i from trades',
-    'select sym, avg price by sym from trades',
-    'select from trades where sym=`AAPL',
-    // Multi-query examples
-    'tables[]; meta trades; select count i from trades',
-    'select from trades; select from quotes',
-  ];
 
   return (
     <div className="bg-card border-b border-border p-2">
+      {/* Tab Headers */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center space-x-2">
           <Code className="h-4 w-4 text-primary" />
@@ -250,19 +472,82 @@ export function QueryExecutorSimple({ onExecuteQuery, isExecuting }: QueryExecut
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setShowHistory(!showHistory)}
-            className="relative"
+            onClick={handleLoadFile}
+            title="Load File (Ctrl/Cmd + O)"
           >
-            <Clock className="h-4 w-4 mr-2" />
-            History
-            {queryHistory.length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                {queryHistory.length}
-              </span>
-            )}
+            <FolderOpen className="h-4 w-4 mr-2" />
+            Load
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSaveAsFile}
+            disabled={!activeTab || !activeTab.query.trim()}
+            title={isFileSystemAccessSupported() 
+              ? "Save As - Choose location (Ctrl/Cmd + S)" 
+              : "Save As - Download file (Ctrl/Cmd + S)"}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Save As
           </Button>
         </div>
       </div>
+
+      {/* Tabs */}
+      <div className="flex items-center space-x-1 mb-2">
+        <div className="flex items-center space-x-1 flex-1 overflow-x-auto">
+          {tabs.map((tab) => (
+            <div
+              key={tab.id}
+              className={`flex items-center space-x-1 px-2 py-1 rounded text-sm cursor-pointer group relative min-w-0 ${
+                tab.id === activeTabId
+                  ? 'bg-background border border-border'
+                  : 'hover:bg-accent'
+              }`}
+              onClick={() => switchToTab(tab.id)}
+            >
+              <FileText className="h-3 w-3 flex-shrink-0" />
+              <span className="truncate max-w-24" title={tab.name}>
+                {tab.name}
+              </span>
+              {tab.isModified && (
+                <span className="text-primary">•</span>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-4 w-4 p-0 opacity-0 group-hover:opacity-100 ml-1"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  closeTab(tab.id);
+                }}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          ))}
+        </div>
+        
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => createNewTab()}
+          title="New Tab (Ctrl/Cmd + N)"
+          className="flex-shrink-0"
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".q,.kdb,.txt"
+        multiple
+        style={{ display: 'none' }}
+        onChange={handleFileSelected}
+      />
 
       <div className="space-y-2">
         <div>
@@ -270,16 +555,20 @@ export function QueryExecutorSimple({ onExecuteQuery, isExecuting }: QueryExecut
             ref={textareaRef}
             value={query}
             onChange={(e) => {
-              setQuery(e.target.value);
+              handleQueryChange(e.target.value);
               setTimeout(updateCurrentQueryInfo, 0); // Update after state change
             }}
             onKeyDown={handleKeyDown}
             onKeyUp={handleCursorChange}
             onClick={handleCursorChange}
             onSelect={handleCursorChange}
-            placeholder="Enter your q query here... (Ctrl/Cmd + Enter or Ctrl/Cmd + E to execute)"
-            className="w-full min-h-20 max-h-[80vh] px-3 py-2 border border-border rounded-md overflow-x-auto whitespace-pre focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-mono text-sm bg-background text-foreground"
-            disabled={isExecuting}
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDragOver={handleDragOverEvent}
+            onDrop={handleDropEvent}
+            placeholder="Enter your q query here... (Ctrl/Cmd + O to load file, Ctrl/Cmd + S to save, drag & drop .q files)"
+            className="w-full min-h-20 max-h-[80vh] px-3 py-2 border border-border rounded-md overflow-x-auto whitespace-pre focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-mono text-sm bg-background text-foreground transition-colors"
+            disabled={isExecuting || !activeTab}
             style={{ resize: 'both' }}
           />
         </div>
@@ -291,42 +580,6 @@ export function QueryExecutorSimple({ onExecuteQuery, isExecuting }: QueryExecut
           </div>
         )}
 
-        {/* Query History Dropdown */}
-        {showHistory && (
-          <div className="bg-card border border-border rounded-md shadow-lg p-2 max-h-60 overflow-y-auto">
-            <div className="text-sm font-medium text-foreground mb-2">Recent Queries</div>
-            {queryHistory.length === 0 ? (
-              <div className="text-sm text-muted-foreground py-2">No query history yet</div>
-            ) : (
-              <div className="space-y-1">
-                {queryHistory.map((historicalQuery, index) => (
-                  <button
-                    key={index}
-                    onClick={() => insertFromHistory(historicalQuery)}
-                    className="w-full text-left px-2 py-1 text-sm hover:bg-accent rounded font-mono truncate"
-                  >
-                    {historicalQuery}
-                  </button>
-                ))}
-              </div>
-            )}
-            
-            <div className="border-t border-border mt-2 pt-2">
-              <div className="text-sm font-medium text-foreground mb-2">Common Queries</div>
-              <div className="space-y-1">
-                {commonQueries.map((commonQuery, index) => (
-                  <button
-                    key={index}
-                    onClick={() => insertFromHistory(commonQuery)}
-                    className="w-full text-left px-2 py-1 text-sm hover:bg-accent rounded font-mono text-muted-foreground"
-                  >
-                    {commonQuery}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
 
         {currentQueryInfo && (
           <div className="flex items-center justify-between text-xs text-muted-foreground">
