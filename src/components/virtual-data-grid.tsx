@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState, useRef, useLayoutEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   useReactTable,
@@ -57,8 +57,13 @@ export function VirtualDataGrid({
   const [dropdownDraggedColumn, setDropdownDraggedColumn] = useState<string | null>(null);
   const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
   
+  // State for dynamic height measurement
+  const [containerHeight, setContainerHeight] = useState<number>(400); // fallback height
+  
   // Ref for virtual scrolling
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  // Ref for ResizeObserver
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
 
   // Initialize column order when data changes
   React.useEffect(() => {
@@ -66,6 +71,55 @@ export function VirtualDataGrid({
       setColumnOrder(['__row_number__', ...data.columns.map((_, index) => index.toString())]);
     }
   }, [data]);
+
+  // Dynamic height measurement for virtual scrolling
+  useLayoutEffect(() => {
+    const measureContainer = () => {
+      if (tableContainerRef.current) {
+        const parentElement = tableContainerRef.current.parentElement;
+        if (parentElement) {
+          // Get the available height from the parent container
+          const parentRect = parentElement.getBoundingClientRect();
+          const containerRect = tableContainerRef.current.getBoundingClientRect();
+          
+          // Calculate the height by finding how much space is above this container
+          const headerHeight = containerRect.top - parentRect.top;
+          const availableHeight = parentRect.height - headerHeight;
+          
+          // Ensure minimum height and apply measurement
+          const measuredHeight = Math.max(200, Math.floor(availableHeight - 8)); // -8px for margin/padding
+          setContainerHeight(measuredHeight);
+        }
+      }
+    };
+
+    // Initial measurement
+    measureContainer();
+
+    // Setup ResizeObserver for dynamic updates
+    if (tableContainerRef.current && typeof ResizeObserver !== 'undefined') {
+      resizeObserverRef.current = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          // Debounce the measurement to avoid excessive updates
+          setTimeout(measureContainer, 10);
+        }
+      });
+
+      // Observe the container's parent for size changes
+      const parentElement = tableContainerRef.current.parentElement;
+      if (parentElement) {
+        resizeObserverRef.current.observe(parentElement);
+      }
+    }
+
+    // Cleanup function
+    return () => {
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect();
+        resizeObserverRef.current = null;
+      }
+    };
+  }, [data]); // Re-run when data changes to ensure proper measurement
 
   // Drag & Drop Event Handlers
   const handleDragStart = (e: React.DragEvent, columnId: string) => {
@@ -378,6 +432,14 @@ export function VirtualDataGrid({
     estimateSize: () => 40, // Estimated row height
     overscan: 20, // Increased overscan to ensure more rows are rendered beyond viewport
   });
+
+  // Update virtualizer when container height changes
+  React.useEffect(() => {
+    if (rowVirtualizer && tableContainerRef.current) {
+      rowVirtualizer.measure();
+    }
+  }, [containerHeight, rowVirtualizer]);
+
 
   const virtualRows = rowVirtualizer.getVirtualItems();
   const totalSize = rowVirtualizer.getTotalSize();
@@ -701,8 +763,8 @@ export function VirtualDataGrid({
       {/* Virtual Scrolling Container */}
       <div 
         ref={tableContainerRef}
-        className="flex-1 overflow-auto relative enhanced-scrollbar focus:outline-none focus:ring-2 focus:ring-primary/50"
-        style={{ maxHeight: 'calc(100vh - 250px)' }}
+        className="overflow-auto relative enhanced-scrollbar focus:outline-none focus:ring-2 focus:ring-primary/50"
+        style={{ height: `${containerHeight}px` }}
         tabIndex={0}
         onKeyDown={handleKeyDown}
         role="grid"

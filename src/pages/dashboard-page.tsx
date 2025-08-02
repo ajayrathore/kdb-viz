@@ -62,10 +62,21 @@ export function DashboardPage({
         toggleSidebar();
       }
       
-      // Ctrl/Cmd + C: Open chart modal (when data is available)
+      // Ctrl/Cmd + C: Open chart modal (when data is available and not editing text)
       if (isCtrlCmd && event.key === 'c' && currentData && currentData.data.length > 0) {
-        event.preventDefault();
-        setIsChartModalOpen(true);
+        // Check if user is currently focused in a text editing context
+        const activeElement = document.activeElement;
+        const isEditingText = activeElement && (
+          activeElement.tagName === 'TEXTAREA' ||
+          activeElement.tagName === 'INPUT' ||
+          (activeElement as HTMLElement).contentEditable === 'true'
+        );
+        
+        // Only trigger chart modal if user is not editing text
+        if (!isEditingText) {
+          event.preventDefault();
+          setIsChartModalOpen(true);
+        }
       }
     };
 
@@ -171,7 +182,7 @@ export function DashboardPage({
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Header */}
-      <header className="app-header px-4 py-1">
+      <header className="app-header px-2 py-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="flex items-center space-x-2">
@@ -197,14 +208,23 @@ export function DashboardPage({
         </div>
       </header>
 
-      {/* Query Executor */}
-      <QueryExecutorSimple
-        onExecuteQuery={handleExecuteQuery}
-        isExecuting={isExecuting}
-      />
-
-      {/* Main Content */}
+      {/* Query Executor and Main Content with Vertical Resizing */}
       <div className="flex-1 overflow-hidden">
+        <PanelGroup direction="vertical" className="h-full">
+          {/* Query Executor Panel */}
+          <Panel defaultSize={50} minSize={15} maxSize={85}>
+            <QueryExecutorSimple
+              onExecuteQuery={handleExecuteQuery}
+              isExecuting={isExecuting}
+            />
+          </Panel>
+          
+          {/* Vertical Resize Handle */}
+          <PanelResizeHandle className="h-1 bg-border hover:bg-primary/20 transition-colors cursor-row-resize" />
+          
+          {/* Main Content Panel */}
+          <Panel defaultSize={50} minSize={15}>
+            <div className="h-full overflow-hidden">
         {browseTables && isSidebarVisible ? (
           <PanelGroup direction="horizontal" className="h-full">
             {/* Left Sidebar Panel */}
@@ -258,8 +278,11 @@ export function DashboardPage({
               isSidebarVisible={browseTables && isSidebarVisible}
               onShowSidebar={browseTables ? toggleSidebar : undefined}
             />
-          </div>
-        )}
+            </div>
+          )}
+            </div>
+          </Panel>
+        </PanelGroup>
       </div>
 
       {/* Chart Modal */}

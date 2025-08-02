@@ -460,9 +460,9 @@ export function QueryExecutorSimple({ onExecuteQuery, isExecuting }: QueryExecut
 
 
   return (
-    <div className="query-executor-section p-2">
+    <div className="query-executor-section px-1 py-0.5 h-full flex flex-col">
       {/* Tab Headers */}
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-0.5">
         <div className="flex items-center space-x-2">
           <Code className="h-4 w-4 text-primary" />
           <h3 className="text-sm font-medium">Query Executor</h3>
@@ -494,12 +494,12 @@ export function QueryExecutorSimple({ onExecuteQuery, isExecuting }: QueryExecut
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center space-x-1 mb-2">
+      <div className="flex items-center space-x-1 mb-0.5">
         <div className="flex items-center space-x-1 flex-1 overflow-x-auto">
           {tabs.map((tab) => (
             <div
               key={tab.id}
-              className={`flex items-center space-x-1 px-2 py-1 rounded text-sm cursor-pointer group relative min-w-0 ${
+              className={`flex items-center space-x-1 px-1.5 py-0 rounded text-sm cursor-pointer group relative min-w-0 ${
                 tab.id === activeTabId
                   ? 'query-tab-active'
                   : 'query-tab-inactive'
@@ -549,8 +549,8 @@ export function QueryExecutorSimple({ onExecuteQuery, isExecuting }: QueryExecut
         onChange={handleFileSelected}
       />
 
-      <div className="space-y-2">
-        <div>
+      <div className="flex-1 flex flex-col space-y-0.5">
+        <div className="flex-1">
           <textarea
             ref={textareaRef}
             value={query}
@@ -566,10 +566,10 @@ export function QueryExecutorSimple({ onExecuteQuery, isExecuting }: QueryExecut
             onDragLeave={handleDragLeave}
             onDragOver={handleDragOverEvent}
             onDrop={handleDropEvent}
-            placeholder="Enter your q query here... (Ctrl/Cmd + O to load file, Ctrl/Cmd + S to save, drag & drop .q files)"
-            className="query-editor w-full min-h-20 max-h-[80vh] px-3 py-2 rounded-md overflow-x-auto whitespace-pre focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-mono text-sm text-foreground transition-colors enhanced-scrollbar"
+            placeholder="Enter your q query here... (Ctrl/Cmd + Enter to execute, Ctrl/Cmd + O to load file, Ctrl/Cmd + S to save, drag & drop .q files)"
+            className="query-editor w-full h-full px-3 py-2 rounded-md overflow-x-auto whitespace-pre focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-mono text-sm text-foreground transition-colors enhanced-scrollbar"
             disabled={isExecuting || !activeTab}
-            style={{ resize: 'both' }}
+            style={{ resize: 'none', minHeight: '80px' }}
           />
         </div>
 
