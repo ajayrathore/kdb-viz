@@ -38,6 +38,7 @@ export function DashboardPage({
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize] = useState(100);
   const [isChartModalOpen, setIsChartModalOpen] = useState(false);
+  const [, setLastExecutedQuery] = useState<string | null>(null);
 
   const totalRows = selectedTable 
     ? tables.find(t => t.name === selectedTable)?.rowCount || 0 
@@ -46,6 +47,7 @@ export function DashboardPage({
   const handleTableSelect = async (tableName: string) => {
     setSelectedTable(tableName);
     setCurrentPage(0);
+    setLastExecutedQuery(`select from ${tableName}`);
     await loadTableData(tableName, 0, pageSize);
   };
 
@@ -76,6 +78,7 @@ export function DashboardPage({
       const result = await executeQuery(query);
       setCurrentData(result);
       setSelectedTable(null); // Clear table selection when executing custom query
+      setLastExecutedQuery(query.trim());
       return result;
     } finally {
       setIsExecuting(false);
@@ -94,18 +97,19 @@ export function DashboardPage({
     if (connectionStatus !== 'connected') {
       setCurrentData(null);
       setSelectedTable(null);
+      setLastExecutedQuery(null);
     }
-  }, [connectionStatus]);
+  }, [connectionStatus, setLastExecutedQuery]);
 
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Header */}
-      <header className="bg-card border-b border-border px-6 py-2">
+      <header className="bg-card border-b border-border px-4 py-1">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3">
             <div className="flex items-center space-x-2">
-              <Database className="h-6 w-6 text-primary" />
-              <h1 className="text-xl font-semibold">KDB+ Visualizer</h1>
+              <Database className="h-5 w-5 text-primary" />
+              <h1 className="text-lg font-medium">KDB+ Visualizer</h1>
             </div>
             <ConnectionInput
               connectionData={connectionData}

@@ -423,17 +423,6 @@ export function VisualizationPanel({ data, isExpanded = false }: VisualizationPa
               </div>
             </div>
 
-            {/* Title Input */}
-            <div>
-              <label className="text-sm font-medium mb-2 block text-foreground">Chart Title</label>
-              <input
-                type="text"
-                value={chartConfig.title || ''}
-                onChange={(e) => setChartConfig(prev => ({ ...prev, title: e.target.value }))}
-                placeholder="Enter chart title"
-                className="w-full px-3 py-2 border border-border rounded-md text-sm bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-              />
-            </div>
           </div>
         )}
       </div>

@@ -603,14 +603,10 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
 
       // Layout configuration with proper axis control
       const layout: any = {
-        title: {
-          text: chartConfig.title,
-          font: { size: 16, color: 'hsl(var(--foreground))' }
-        },
         paper_bgcolor: 'rgba(0,0,0,0)',
         plot_bgcolor: 'rgba(0,0,0,0)',
         font: { color: 'hsl(var(--foreground))' },
-        margin: { l: 80, r: 50, t: 80, b: 120 },
+        margin: { l: 80, r: 50, t: 50, b: 120 },
         width: chartDimensions.width,
         height: chartDimensions.height,
         xaxis: {
@@ -881,17 +877,6 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
                 </DropdownMenu>
               </div>
 
-              {/* Chart Title */}
-              <div>
-                <label className="text-sm font-medium mb-3 block text-foreground">Chart Title</label>
-                <input
-                  type="text"
-                  value={chartConfig.title || ''}
-                  onChange={(e) => setChartConfig(prev => ({ ...prev, title: e.target.value }))}
-                  placeholder="Enter chart title"
-                  className="w-full px-3 py-2 border border-border rounded-md text-sm bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-              </div>
             </div>
 
             {/* Area Chart Specific Options */}

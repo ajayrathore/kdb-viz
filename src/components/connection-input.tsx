@@ -112,8 +112,8 @@ export function ConnectionInput({
           value={hostPort}
           onChange={(e) => setHostPort(e.target.value)}
           onKeyPress={handleKeyPress}
-          className="w-32"
-          disabled={isConnecting}
+          className={`w-32 ${connectionStatus === 'connected' ? 'opacity-50 cursor-not-allowed' : ''}`}
+          disabled={isConnecting || connectionStatus === 'connected'}
         />
         
         {connectionStatus === 'connected' ? (

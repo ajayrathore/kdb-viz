@@ -55,8 +55,8 @@ export function QueryExecutorSimple({ onExecuteQuery, isExecuting }: QueryExecut
     <div className="bg-card border-b border-border p-2">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center space-x-2">
-          <Code className="h-5 w-5 text-primary" />
-          <h3 className="text-lg font-semibold">Query Executor</h3>
+          <Code className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-medium">Query Executor</h3>
         </div>
         
         <div className="flex items-center space-x-2">
@@ -85,8 +85,9 @@ export function QueryExecutorSimple({ onExecuteQuery, isExecuting }: QueryExecut
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Enter your q query here... (Ctrl/Cmd + Enter to execute)"
-              className="w-full h-20 px-3 py-2 border border-border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-mono text-sm bg-background text-foreground"
+              className="w-full min-h-20 max-h-60 px-3 py-2 border border-border rounded-md resize-y focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-mono text-sm bg-background text-foreground"
               disabled={isExecuting}
+              style={{ resize: 'vertical' }}
             />
           </div>
           
