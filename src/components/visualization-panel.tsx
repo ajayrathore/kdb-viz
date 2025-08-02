@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { KdbQueryResult, ChartConfig, ChartType } from '@/types/kdb';
+import { generateFinancialHeatmap } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -198,19 +199,59 @@ export function VisualizationPanel({ data, isExpanded = false }: VisualizationPa
           break;
           
         case 'heatmap':
-          // Create a simple heatmap with the available data
-          const uniqueX = [...new Set(xData)].slice(0, 10);
-          const uniqueY = [...new Set(yData)].slice(0, 10);
-          const z = uniqueX.map(() => uniqueY.map(() => Math.random()));
-          
-          trace = {
-            x: uniqueX,
-            y: uniqueY,
-            z: z,
-            type: 'heatmap',
-            colorscale: 'Viridis'
-          };
-          traces = [trace];
+          // Use our new financial heatmap generator
+          try {
+            const heatmapData = generateFinancialHeatmap(
+              data.columns,
+              data.data,
+              chartConfig.xColumn,
+              chartConfig.yColumns.length > 0 ? chartConfig.yColumns : [chartConfig.yColumn]
+            );
+            
+            trace = {
+              x: heatmapData.x,
+              y: heatmapData.y,
+              z: heatmapData.z,
+              type: 'heatmap',
+              colorscale: heatmapData.colorscale || 'Viridis',
+              showscale: true,
+              colorbar: {
+                title: heatmapData.title || 'Intensity',
+                titleside: 'right'
+              },
+              hovertemplate: 
+                '<b>X: %{x}</b><br>' +
+                'Y: %{y}<br>' +
+                'Value: %{z}<br>' +
+                '<extra></extra>',
+              // Ensure proper handling of zero values
+              zauto: false,
+              zmin: 0,
+              zmax: Math.max(...heatmapData.z.flat()) || 1
+            };
+            traces = [trace];
+          } catch (error) {
+            console.warn('Error generating financial heatmap, using fallback:', error);
+            // Fallback to basic heatmap if there's an error
+            const uniqueX = [...new Set(xData)].slice(0, 15);
+            const uniqueY = [...new Set(yData)].slice(0, 10);
+            const fallbackMatrix = uniqueY.map((_, i) => 
+              uniqueX.map((_, j) => {
+                // Create a pattern instead of random data
+                return Math.sin(i * 0.5) * Math.cos(j * 0.5) * 10 + 10;
+              })
+            );
+            
+            trace = {
+              x: uniqueX.map(String),
+              y: uniqueY.map(String),
+              z: fallbackMatrix,
+              type: 'heatmap',
+              colorscale: 'Viridis',
+              showscale: true
+            };
+            traces = [trace];
+          }
           break;
           
         case 'box':

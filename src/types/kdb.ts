@@ -66,4 +66,39 @@ export interface ChartConfig {
   // Additional fields for band/range charts
   upperColumn?: string;
   lowerColumn?: string;
+  // Heatmap configuration
+  heatmapConfig?: HeatmapConfig;
+}
+
+export interface HeatmapConfig {
+  // Type of heatmap visualization
+  heatmapType?: 'auto' | 'density' | 'volume' | 'price_activity' | 'simple_values';
+  // Time bucketing for time-series data
+  timeBuckets?: number;
+  // Value buckets for non-time data
+  valueBuckets?: number;
+  // Color scale preference
+  colorScale?: 'Viridis' | 'Hot' | 'RdYlGn' | 'Blues' | 'Plasma' | 'Cividis';
+  // Whether to enhance contrast for "hot vs cold" visualization
+  enhanceContrast?: boolean;
+  // Custom aggregation method
+  aggregationMethod?: 'count' | 'sum' | 'mean' | 'max' | 'min';
+}
+
+export type HeatmapType = 'density' | 'volume' | 'price_activity' | 'simple_values' | 'multi_series';
+
+export interface HeatmapDataResult {
+  x: (string | number)[];
+  y: (string | number)[];
+  z: number[][];
+  colorscale?: string;
+  type: HeatmapType;
+  title?: string;
+  metadata?: {
+    detectedDataType: 'single_column' | 'time_price' | 'time_volume' | 'ohlc' | 'unknown';
+    timeBucketSize?: number;
+    valueBucketSize?: number;
+    totalDataPoints: number;
+    maxIntensity: number;
+  };
 }
