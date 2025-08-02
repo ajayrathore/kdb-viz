@@ -274,9 +274,6 @@ export function QueryExecutorEnhanced({ onExecuteQuery, isExecuting }: QueryExec
           </div>
         )}
 
-        <div className="text-xs text-muted-foreground">
-          Tip: Use Ctrl/Cmd + Enter to execute queries quickly. Large results will be previewed first.
-        </div>
       </div>
     </div>
   );

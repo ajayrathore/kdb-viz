@@ -441,20 +441,20 @@ export function VirtualDataGrid({
                   {onOpenChart && (
                     <button
                       onClick={onOpenChart}
-                      className="p-1.5 text-muted-foreground hover:text-primary transition-colors rounded"
+                      className="icon-3d icon-3d-chart p-2 rounded-md"
                       title="Open Chart Visualization"
                     >
-                      <BarChart3 className="h-4 w-4" />
+                      <BarChart3 className="h-5 w-5" />
                     </button>
                   )}
                   
                   {/* CSV Export Button */}
                   <button
                     onClick={exportToCSV}
-                    className="p-1.5 text-muted-foreground hover:text-primary transition-colors rounded"
+                    className="icon-3d icon-3d-export p-2 rounded-md"
                     title="Export Data as CSV"
                   >
-                    <Download className="h-4 w-4" />
+                    <Download className="h-5 w-5" />
                   </button>
                   
                   {/* Column Management Dropdown */}
@@ -462,10 +462,10 @@ export function VirtualDataGrid({
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button
-                          className="p-1.5 text-muted-foreground hover:text-primary transition-colors rounded"
+                          className="icon-3d icon-3d-settings p-2 rounded-md"
                           title="Manage Columns"
                         >
-                          <Settings className="h-4 w-4" />
+                          <Settings className="h-5 w-5" />
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-72">
