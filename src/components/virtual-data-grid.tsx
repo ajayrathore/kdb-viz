@@ -244,8 +244,9 @@ export function VirtualDataGrid({
         // For static row numbers, use the original dataset position
         const originalIndex = row.original._originalRowIndex;
         const rowNumber = originalIndex + 1; // Simple 1-based numbering from original dataset
+        
         return (
-          <div className="row-number-cell" title={`Original row ${rowNumber}`}>
+          <div className="row-number-cell" title={`Row ${rowNumber}`}>
             {rowNumber}
           </div>
         );
@@ -375,11 +376,12 @@ export function VirtualDataGrid({
     count: rows.length,
     getScrollElement: () => tableContainerRef.current,
     estimateSize: () => 40, // Estimated row height
-    overscan: 10, // Number of rows to render outside of viewport
+    overscan: 20, // Increased overscan to ensure more rows are rendered beyond viewport
   });
 
   const virtualRows = rowVirtualizer.getVirtualItems();
   const totalSize = rowVirtualizer.getTotalSize();
+  
 
   // Calculate total pages based on mode
   const totalPages = clientSidePagination && totalDataRows > 0
@@ -407,7 +409,15 @@ export function VirtualDataGrid({
 
   const scrollToBottom = () => {
     if (rows.length > 0) {
+      // Use align: 'end' and force the virtualizer to include the last row
       rowVirtualizer.scrollToIndex(rows.length - 1, { align: 'end' });
+      
+      // Fallback: scroll to bottom of container if virtualizer doesn't reach end
+      setTimeout(() => {
+        if (tableContainerRef.current) {
+          tableContainerRef.current.scrollTop = tableContainerRef.current.scrollHeight;
+        }
+      }, 100);
     }
   };
 
@@ -789,7 +799,7 @@ export function VirtualDataGrid({
                 <td 
                   colSpan={columns.length} 
                   style={{ 
-                    height: totalSize - (virtualRows[virtualRows.length - 1]?.end || 0) 
+                    height: Math.max(0, totalSize - (virtualRows[virtualRows.length - 1]?.end || 0)) + 100 // Extra 100px padding
                   }} 
                 />
               </tr>
