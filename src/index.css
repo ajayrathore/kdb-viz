@@ -136,6 +136,69 @@
   .simple-progress-glow {
     box-shadow: 0 0 10px hsl(var(--primary) / 0.2);
   }
+
+  /* ========================================
+     DRAG & DROP COLUMN REORDERING
+     ======================================== */
+  
+  /* Drag handle styling */
+  .drag-handle {
+    transition: color 0.2s ease;
+  }
+  
+  .drag-handle:hover {
+    color: hsl(var(--primary));
+    cursor: grab;
+  }
+  
+  .drag-handle:active {
+    cursor: grabbing;
+  }
+  
+  /* Column dragging state */
+  .column-dragging {
+    opacity: 0.5;
+    transform: rotate(2deg);
+    transition: all 0.2s ease;
+  }
+  
+  /* Drop target highlighting */
+  .column-drag-target {
+    border-left: 2px solid hsl(var(--primary));
+    background-color: hsl(var(--primary) / 0.1);
+  }
+  
+  /* Smooth transitions for column operations */
+  .column-header {
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  
+  /* Dropdown drag & drop styles */
+  .dropdown-drag-item {
+    transition: opacity 0.2s ease, background-color 0.2s ease;
+  }
+  
+  .dropdown-drag-item:hover {
+    background-color: hsl(var(--accent) / 0.5);
+  }
+  
+  .dropdown-drag-item.dragging {
+    opacity: 0.6;
+    background-color: hsl(var(--accent) / 0.2);
+  }
+  
+  .dropdown-drag-handle {
+    transition: color 0.2s ease;
+    cursor: grab;
+  }
+  
+  .dropdown-drag-handle:hover {
+    color: hsl(var(--primary));
+  }
+  
+  .dropdown-drag-handle:active {
+    cursor: grabbing;
+  }
 }
 
 /* ========================================

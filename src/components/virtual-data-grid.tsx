@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   useReactTable,
@@ -11,12 +11,11 @@ import {
   type ColumnDef,
   ColumnResizeMode,
 } from '@tanstack/react-table';
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Search, Database, Loader2, BarChart3, Download, Settings, EyeOff } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Search, Database, Loader2, BarChart3, Download, Settings, EyeOff, GripVertical, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -56,9 +55,122 @@ export function VirtualDataGrid({
   const [clientPage, setClientPage] = useState(0);
   const [clientPageSize, setClientPageSize] = useState(10000);
   const [columnVisibility, setColumnVisibility] = useState({});
+  const [columnOrder, setColumnOrder] = useState<string[]>([]);
+  const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
+  const [dropdownDraggedColumn, setDropdownDraggedColumn] = useState<string | null>(null);
   
   // Ref for virtual scrolling
   const tableContainerRef = useRef<HTMLDivElement>(null);
+
+  // Initialize column order when data changes
+  React.useEffect(() => {
+    if (data?.columns) {
+      setColumnOrder(data.columns.map((_, index) => index.toString()));
+    }
+  }, [data]);
+
+  // Drag & Drop Event Handlers
+  const handleDragStart = (e: React.DragEvent, columnId: string) => {
+    e.dataTransfer.setData('text/plain', columnId);
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggedColumn(columnId);
+    
+    // Add visual feedback
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '0.5';
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e: React.DragEvent, targetColumnId: string) => {
+    e.preventDefault();
+    const draggedColumnId = e.dataTransfer.getData('text/plain');
+    
+    if (draggedColumnId && draggedColumnId !== targetColumnId) {
+      reorderColumns(draggedColumnId, targetColumnId);
+    }
+    
+    setDraggedColumn(null);
+    
+    // Reset visual feedback
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '1';
+    }
+  };
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    setDraggedColumn(null);
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '1';
+    }
+  };
+
+  // Column Reordering Logic
+  const reorderColumns = (draggedId: string, targetId: string) => {
+    setColumnOrder(prev => {
+      const newOrder = [...prev];
+      const draggedIndex = newOrder.indexOf(draggedId);
+      const targetIndex = newOrder.indexOf(targetId);
+      
+      // Remove dragged item
+      const [draggedItem] = newOrder.splice(draggedIndex, 1);
+      
+      // Insert at target position
+      newOrder.splice(targetIndex, 0, draggedItem);
+      
+      return newOrder;
+    });
+  };
+
+  // Dropdown Drag & Drop Event Handlers
+  const handleDropdownDragStart = (e: React.DragEvent, columnId: string) => {
+    e.dataTransfer.setData('text/plain', columnId);
+    e.dataTransfer.effectAllowed = 'move';
+    setDropdownDraggedColumn(columnId);
+    
+    // Add visual feedback
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '0.6';
+    }
+  };
+
+  const handleDropdownDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDropdownDrop = (e: React.DragEvent, targetColumnId: string) => {
+    e.preventDefault();
+    const draggedColumnId = e.dataTransfer.getData('text/plain');
+    
+    if (draggedColumnId && draggedColumnId !== targetColumnId) {
+      reorderColumns(draggedColumnId, targetColumnId);
+    }
+    
+    setDropdownDraggedColumn(null);
+    
+    // Reset visual feedback
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '1';
+    }
+  };
+
+  const handleDropdownDragEnd = (e: React.DragEvent) => {
+    setDropdownDraggedColumn(null);
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '1';
+    }
+  };
+
+  const resetColumnOrder = () => {
+    if (data?.columns) {
+      setColumnOrder(data.columns.map((_, index) => index.toString()));
+    }
+  };
 
   // CSV Export function
   const exportToCSV = () => {
@@ -102,39 +214,72 @@ export function VirtualDataGrid({
   };
 
   const columns = useMemo<ColumnDef<any>[]>(() => {
-    if (!data || !data.columns) return [];
+    if (!data || !data.columns || columnOrder.length === 0) return [];
     
-    return data.columns.map((columnName, index) => ({
-      accessorKey: index.toString(),
-      header: columnName,
-      size: 150, // Default column width
-      minSize: 50, // Minimum column width
-      maxSize: 500, // Maximum column width
-      enableResizing: true,
-      cell: ({ getValue }) => {
-        const value = getValue();
-        if (value === null || value === undefined) return '-';
-        if (typeof value === 'number') {
-          return value.toLocaleString();
-        }
-        if (typeof value === 'string') {
-          // Check if this is a time value from KDB+ (ISO string starting with 2000-01-01)
-          if (value.startsWith('2000-01-01T') && value.length >= 23) {
-            // Extract just the time portion HH:MM:SS.mmm
-            return value.substring(11, 23);
-          }
-          if (value.length > 50) {
-            return (
-              <span title={value}>
-                {value.substring(0, 50) + '...'}
+    return columnOrder.map((colId) => {
+      const index = parseInt(colId);
+      const columnName = data.columns[index];
+      
+      return {
+        id: colId,
+        accessorKey: colId,
+        header: ({ column }) => (
+          <div 
+            className={`flex items-center space-x-2 ${
+              enableColumnControls ? 'cursor-move' : ''
+            } ${draggedColumn === colId ? 'opacity-50' : ''}`}
+            draggable={enableColumnControls}
+            onDragStart={(e) => handleDragStart(e, colId)}
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleDrop(e, colId)}
+            onDragEnd={handleDragEnd}
+          >
+            {enableColumnControls && (
+              <GripVertical className="h-3 w-3 text-muted-foreground hover:text-primary transition-colors" />
+            )}
+            <span className="truncate">{columnName}</span>
+            {column.getCanSort() && (
+              <span className="text-muted-foreground">
+                {column.getIsSorted() === 'asc' ? (
+                  <ChevronUp className="h-3 w-3" />
+                ) : column.getIsSorted() === 'desc' ? (
+                  <ChevronDown className="h-3 w-3" />
+                ) : (
+                  <div className="h-3 w-3" />
+                )}
               </span>
-            );
+            )}
+          </div>
+        ),
+        size: 150, // Default column width
+        minSize: 50, // Minimum column width
+        maxSize: 500, // Maximum column width
+        enableResizing: true,
+        cell: ({ getValue }) => {
+          const value = getValue();
+          if (value === null || value === undefined) return '-';
+          if (typeof value === 'number') {
+            return value.toLocaleString();
           }
-        }
-        return String(value);
-      },
-    }));
-  }, [data]);
+          if (typeof value === 'string') {
+            // Check if this is a time value from KDB+ (ISO string starting with 2000-01-01)
+            if (value.startsWith('2000-01-01T') && value.length >= 23) {
+              // Extract just the time portion HH:MM:SS.mmm
+              return value.substring(11, 23);
+            }
+            if (value.length > 50) {
+              return (
+                <span title={value}>
+                  {value.substring(0, 50) + '...'}
+                </span>
+              );
+            }
+          }
+          return String(value);
+        },
+      };
+    });
+  }, [data, columnOrder, enableColumnControls, draggedColumn, handleDragStart, handleDragOver, handleDrop, handleDragEnd]);
 
   const tableData = useMemo(() => {
     if (!data || !data.data) return [];
@@ -175,6 +320,7 @@ export function VirtualDataGrid({
       columnFilters,
       globalFilter,
       columnVisibility,
+      columnOrder,
     },
   });
 
@@ -306,29 +452,50 @@ export function VirtualDataGrid({
                           <Settings className="h-4 w-4" />
                         </button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuContent align="end" className="w-72">
                         <DropdownMenuLabel>Column Visibility</DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        {table.getAllColumns()
-                          .filter(column => column.getCanHide())
-                          .map((column) => {
-                            const columnIndex = parseInt(column.id);
-                            const columnName = data?.columns[columnIndex] || `Column ${columnIndex + 1}`;
-                            return (
-                              <DropdownMenuCheckboxItem
-                                key={column.id}
-                                className="capitalize"
-                                checked={column.getIsVisible()}
-                                onCheckedChange={(value) => column.toggleVisibility(!!value)}
-                              >
-                                {columnName}
-                              </DropdownMenuCheckboxItem>
-                            );
-                          })}
+                        {columnOrder.map((columnId) => {
+                          const column = table.getColumn(columnId);
+                          if (!column || !column.getCanHide()) return null;
+                          
+                          const columnIndex = parseInt(columnId);
+                          const columnName = data?.columns[columnIndex] || `Column ${columnIndex + 1}`;
+                          const isDragging = dropdownDraggedColumn === columnId;
+                          
+                          return (
+                            <div
+                              key={columnId}
+                              className={`dropdown-drag-item flex items-center px-2 py-1.5 text-sm cursor-pointer select-none ${
+                                isDragging ? 'dragging' : ''
+                              }`}
+                              draggable
+                              onDragStart={(e) => handleDropdownDragStart(e, columnId)}
+                              onDragOver={handleDropdownDragOver}
+                              onDrop={(e) => handleDropdownDrop(e, columnId)}
+                              onDragEnd={handleDropdownDragEnd}
+                            >
+                              <GripVertical className="dropdown-drag-handle h-3 w-3 text-muted-foreground mr-2 flex-shrink-0" />
+                              <div className="flex items-center space-x-2 flex-1 min-w-0">
+                                <input
+                                  type="checkbox"
+                                  checked={column.getIsVisible()}
+                                  onChange={(e) => column.toggleVisibility(e.target.checked)}
+                                  className="h-4 w-4 rounded border border-input bg-background ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                />
+                                <span className="capitalize truncate">{columnName}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => table.resetColumnVisibility()}>
                           <EyeOff className="mr-2 h-4 w-4" />
                           Reset Visibility
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={resetColumnOrder}>
+                          <RotateCcw className="mr-2 h-4 w-4" />
+                          Reset Column Order
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
