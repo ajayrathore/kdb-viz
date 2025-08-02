@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Table, Search, Database, Hash } from 'lucide-react';
+import { Table, Search, Database, Hash, PanelLeftClose } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { KdbTable } from '@/types/kdb';
 import { formatNumber } from '@/lib/utils';
@@ -8,9 +8,10 @@ interface TableSidebarProps {
   tables: KdbTable[];
   selectedTable: string | null;
   onTableSelect: (tableName: string) => void;
+  onToggleSidebar?: () => void;
 }
 
-export function TableSidebar({ tables, selectedTable, onTableSelect }: TableSidebarProps) {
+export function TableSidebar({ tables, selectedTable, onTableSelect, onToggleSidebar }: TableSidebarProps) {
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredTables = tables.filter(table =>
@@ -21,10 +22,21 @@ export function TableSidebar({ tables, selectedTable, onTableSelect }: TableSide
   return (
     <div className="bg-card border-r border-border flex flex-col h-full">
       <div className="p-2 border-b border-border">
-        <div className="flex items-center space-x-2 mb-2">
-          <Database className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold text-foreground">Tables</h2>
-          <span className="text-sm text-muted-foreground">({tables.length})</span>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center space-x-2">
+            <Database className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-semibold text-foreground">Tables</h2>
+            <span className="text-sm text-muted-foreground">({tables.length})</span>
+          </div>
+          {onToggleSidebar && (
+            <button
+              onClick={onToggleSidebar}
+              className="sidebar-toggle-btn p-1.5 text-muted-foreground hover:text-primary rounded"
+              title={`Hide Tables Panel (${navigator.platform.includes('Mac') ? 'Cmd' : 'Ctrl'}+B)`}
+            >
+              <PanelLeftClose className="h-4 w-4" />
+            </button>
+          )}
         </div>
         
         <div className="relative">

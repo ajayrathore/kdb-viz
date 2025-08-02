@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { TableSidebar } from '@/components/table-sidebar';
 import { VirtualDataGrid } from '@/components/virtual-data-grid';
 import { QueryExecutorSimple } from '@/components/query-executor-simple';
@@ -38,10 +38,43 @@ export function DashboardPage({
   const [pageSize] = useState(100);
   const [isChartModalOpen, setIsChartModalOpen] = useState(false);
   const [, setLastExecutedQuery] = useState<string | null>(null);
+  const [isSidebarVisible, setIsSidebarVisible] = useState(true);
 
   const totalRows = selectedTable 
     ? tables.find(t => t.name === selectedTable)?.rowCount || 0 
     : 0;
+
+  const toggleSidebar = useCallback(() => {
+    setIsSidebarVisible(prev => !prev);
+  }, []);
+
+  // Keyboard shortcut handler
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'b') {
+        event.preventDefault();
+        toggleSidebar();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [toggleSidebar]);
+
+  // Responsive behavior - auto-hide sidebar on mobile
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) { // md breakpoint
+        setIsSidebarVisible(false);
+      }
+    };
+
+    // Check on mount
+    handleResize();
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleTableSelect = async (tableName: string) => {
     setSelectedTable(tableName);
@@ -133,38 +166,61 @@ export function DashboardPage({
 
       {/* Main Content */}
       <div className="flex-1 overflow-hidden">
-        <PanelGroup direction="horizontal" className="h-full">
-          {/* Left Sidebar Panel */}
-          <Panel defaultSize={20} minSize={15} maxSize={40}>
-            <TableSidebar
-              tables={tables}
-              selectedTable={selectedTable}
-              onTableSelect={handleTableSelect}
-            />
-          </Panel>
-          
-          {/* Resize Handle */}
-          <PanelResizeHandle className="w-1 bg-border hover:bg-primary/20 transition-colors" />
-          
-          {/* Main Content Panel */}
-          <Panel defaultSize={80}>
-            <div className="h-full flex flex-col overflow-hidden">
-              {/* Virtual Data Grid with Client-Side Pagination */}
-              <VirtualDataGrid
-                data={currentData}
-                isLoading={isLoading}
-                onPageChange={selectedTable ? handlePageChange : undefined}
-                currentPage={currentPage}
-                pageSize={pageSize}
-                totalRows={totalRows}
-                clientSidePagination={!selectedTable} // Use client-side for queries, server-side for tables
-                onOpenChart={() => setIsChartModalOpen(true)}
-                hasData={!!(currentData && currentData.data.length > 0)}
-                enableColumnControls={true}
+        {isSidebarVisible ? (
+          <PanelGroup direction="horizontal" className="h-full">
+            {/* Left Sidebar Panel */}
+            <Panel defaultSize={20} minSize={15} maxSize={40}>
+              <TableSidebar
+                tables={tables}
+                selectedTable={selectedTable}
+                onTableSelect={handleTableSelect}
+                onToggleSidebar={toggleSidebar}
               />
-            </div>
-          </Panel>
-        </PanelGroup>
+            </Panel>
+            
+            {/* Resize Handle */}
+            <PanelResizeHandle className="w-1 bg-border hover:bg-primary/20 transition-colors" />
+            
+            {/* Main Content Panel */}
+            <Panel defaultSize={80}>
+              <div className="h-full flex flex-col overflow-hidden">
+                {/* Virtual Data Grid with Client-Side Pagination */}
+                <VirtualDataGrid
+                  data={currentData}
+                  isLoading={isLoading}
+                  onPageChange={selectedTable ? handlePageChange : undefined}
+                  currentPage={currentPage}
+                  pageSize={pageSize}
+                  totalRows={totalRows}
+                  clientSidePagination={!selectedTable} // Use client-side for queries, server-side for tables
+                  onOpenChart={() => setIsChartModalOpen(true)}
+                  hasData={!!(currentData && currentData.data.length > 0)}
+                  enableColumnControls={true}
+                  isSidebarVisible={isSidebarVisible}
+                  onShowSidebar={toggleSidebar}
+                />
+              </div>
+            </Panel>
+          </PanelGroup>
+        ) : (
+          <div className="h-full flex flex-col overflow-hidden transition-all duration-300 ease-in-out">
+            {/* Virtual Data Grid - Full Width */}
+            <VirtualDataGrid
+              data={currentData}
+              isLoading={isLoading}
+              onPageChange={selectedTable ? handlePageChange : undefined}
+              currentPage={currentPage}
+              pageSize={pageSize}
+              totalRows={totalRows}
+              clientSidePagination={!selectedTable} // Use client-side for queries, server-side for tables
+              onOpenChart={() => setIsChartModalOpen(true)}
+              hasData={!!(currentData && currentData.data.length > 0)}
+              enableColumnControls={true}
+              isSidebarVisible={isSidebarVisible}
+              onShowSidebar={toggleSidebar}
+            />
+          </div>
+        )}
       </div>
 
       {/* Chart Modal */}

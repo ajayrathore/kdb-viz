@@ -11,7 +11,7 @@ import {
   type ColumnDef,
   ColumnResizeMode,
 } from '@tanstack/react-table';
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Search, Database, Loader2, BarChart3, Download, Settings, EyeOff, GripVertical, RotateCcw } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Search, Database, Loader2, BarChart3, Download, Settings, EyeOff, GripVertical, RotateCcw, PanelLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -35,6 +35,8 @@ interface VirtualDataGridProps {
   onOpenChart?: () => void;
   hasData?: boolean;
   enableColumnControls?: boolean;
+  isSidebarVisible?: boolean;
+  onShowSidebar?: () => void;
 }
 
 export function VirtualDataGrid({ 
@@ -47,7 +49,9 @@ export function VirtualDataGrid({
   clientSidePagination = true,
   onOpenChart,
   hasData = false,
-  enableColumnControls = false
+  enableColumnControls = false,
+  isSidebarVisible = true,
+  onShowSidebar
 }: VirtualDataGridProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -419,9 +423,21 @@ export function VirtualDataGrid({
               </div>
               
               {/* Action Icons */}
-              {hasData && (
-                <div className="flex items-center space-x-1 ml-4">
-                  {/* Chart Button */}
+              <div className="flex items-center space-x-1 ml-4">
+                {/* Show Sidebar Button - only when sidebar is hidden */}
+                {!isSidebarVisible && onShowSidebar && (
+                  <button
+                    onClick={onShowSidebar}
+                    className="sidebar-toggle-btn p-1.5 text-muted-foreground hover:text-primary rounded"
+                    title={`Show Tables Panel (${navigator.platform.includes('Mac') ? 'Cmd' : 'Ctrl'}+B)`}
+                  >
+                    <PanelLeft className="h-4 w-4" />
+                  </button>
+                )}
+                
+                {hasData && (
+                  <>
+                    {/* Chart Button */}
                   {onOpenChart && (
                     <button
                       onClick={onOpenChart}
@@ -500,8 +516,9 @@ export function VirtualDataGrid({
                       </DropdownMenuContent>
                     </DropdownMenu>
                   )}
-                </div>
-              )}
+                  </>
+                )}
+              </div>
             </div>
           </div>
           
