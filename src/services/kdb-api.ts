@@ -6,6 +6,7 @@ export class KdbApiService {
   private connectionStatus: ConnectionStatus = 'disconnected';
   private eventListeners: Map<string, Function[]> = new Map();
   private abortController: AbortController | null = null;
+  private queryAbortController: AbortController | null = null;
 
   constructor() {
     this.addEventListener = this.addEventListener.bind(this);
@@ -76,28 +77,51 @@ export class KdbApiService {
     }
   }
 
+  cancelQuery(): void {
+    if (this.queryAbortController) {
+      this.queryAbortController.abort();
+      this.queryAbortController = null;
+    }
+  }
+
   async executeQuery(query: string): Promise<KdbQueryResult> {
     if (!this.isConnected()) {
       throw new Error('Not connected to KDB+ server');
     }
 
     try {
+      // Cancel any existing query execution
+      if (this.queryAbortController) {
+        this.queryAbortController.abort();
+      }
+
+      // Create new AbortController for this query
+      this.queryAbortController = new AbortController();
+
       const response = await fetch(`${API_BASE_URL}/query`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ query }),
+        signal: this.queryAbortController.signal,
       });
 
       const result = await response.json();
 
       if (result.success) {
+        this.queryAbortController = null;
         return result.data;
       } else {
+        this.queryAbortController = null;
         throw new Error(result.error || 'Query execution failed');
       }
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        this.queryAbortController = null;
+        throw new Error('Query execution cancelled');
+      }
+      this.queryAbortController = null;
       throw new Error(`Query failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }

@@ -15,6 +15,7 @@ import {
 interface QueryExecutorSimpleProps {
   onExecuteQuery: (query: string) => Promise<KdbQueryResult>;
   isExecuting: boolean;
+  onCancelQuery?: () => void;
 }
 
 interface QueryTab {
@@ -127,7 +128,7 @@ const getSelectedOrCurrentQuery = (
   return getCurrentQueryAtCursor(fullText, selectionStart);
 };
 
-export function QueryExecutorSimple({ onExecuteQuery, isExecuting }: QueryExecutorSimpleProps) {
+export function QueryExecutorSimple({ onExecuteQuery, isExecuting, onCancelQuery }: QueryExecutorSimpleProps) {
   // Helper to generate unique IDs
   const generateTabId = () => `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
@@ -466,6 +467,16 @@ export function QueryExecutorSimple({ onExecuteQuery, isExecuting }: QueryExecut
         <div className="flex items-center space-x-2">
           <Code className="h-4 w-4 text-primary" />
           <h3 className="text-sm font-medium">Query Executor</h3>
+          {isExecuting && onCancelQuery && (
+            <Button
+              variant="destructive"
+              size="icon"
+              onClick={onCancelQuery}
+              className="h-6 w-6 rounded-full cancel-button-3d"
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          )}
         </div>
         
         <div className="flex items-center space-x-2">

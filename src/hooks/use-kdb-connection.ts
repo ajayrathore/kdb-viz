@@ -81,6 +81,12 @@ export function useKdbConnection() {
     }
   }, []);
 
+  const cancelQuery = useCallback(() => {
+    if (serviceRef.current) {
+      serviceRef.current.cancelQuery();
+    }
+  }, []);
+
   return {
     status,
     error,
@@ -88,6 +94,7 @@ export function useKdbConnection() {
     connect,
     disconnect,
     cancelConnection,
+    cancelQuery,
     executeQuery,
     getTableData,
     refreshTables,
