@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { TableSidebar } from '@/components/table-sidebar';
 import { VirtualDataGrid } from '@/components/virtual-data-grid';
 import { TableMetadataDisplay } from '@/components/table-metadata-display';
-import { QueryExecutorSimple } from '@/components/query-executor-simple';
+import { QueryExecutorSimple, QueryExecutorRef } from '@/components/query-executor-simple';
 import { ChartModal } from '@/components/chart-modal-plotly';
 import { ConnectionInput } from '@/components/connection-input';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -48,6 +48,9 @@ export function DashboardPage({
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
   const [browseTables, setBrowseTables] = useState(false);
   const [isDisplayingMetadata, setIsDisplayingMetadata] = useState(false);
+
+  // Ref for focus management  
+  const queryExecutorRef = useRef<QueryExecutorRef>(null);
 
   const totalRows = selectedTable 
     ? tables.find(t => t.name === selectedTable)?.rowCount || 0 
@@ -162,6 +165,14 @@ export function DashboardPage({
     }
   };
 
+  // Focus callback for after query execution
+  const handleQueryExecuted = useCallback(() => {
+    // Use setTimeout to ensure focus happens after React updates
+    setTimeout(() => {
+      queryExecutorRef.current?.focusTextarea();
+    }, 100);
+  }, []);
+
   // Load first table by default when connected and browsing tables
   useEffect(() => {
     if (connectionStatus === 'connected' && browseTables && tables.length > 0 && !selectedTable) {
@@ -237,9 +248,11 @@ export function DashboardPage({
           {/* Query Executor Panel */}
           <Panel defaultSize={50} minSize={15} maxSize={85}>
             <QueryExecutorSimple
+              ref={queryExecutorRef}
               onExecuteQuery={handleExecuteQuery}
               isExecuting={isExecuting}
               onCancelQuery={onCancelQuery}
+              onQueryExecuted={handleQueryExecuted}
             />
           </Panel>
           

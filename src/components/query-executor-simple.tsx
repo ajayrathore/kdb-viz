@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useMemo, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, Code, FolderOpen, Plus, X, FileText, Download, Loader2 } from 'lucide-react';
 import { KdbQueryResult } from '@/types/kdb';
@@ -16,6 +16,7 @@ interface QueryExecutorSimpleProps {
   onExecuteQuery: (query: string) => Promise<KdbQueryResult>;
   isExecuting: boolean;
   onCancelQuery?: () => void;
+  onQueryExecuted?: () => void;
 }
 
 interface QueryTab {
@@ -128,7 +129,12 @@ const getSelectedOrCurrentQuery = (
   return getCurrentQueryAtCursor(fullText, selectionStart);
 };
 
-export function QueryExecutorSimple({ onExecuteQuery, isExecuting, onCancelQuery }: QueryExecutorSimpleProps) {
+// Define the ref interface
+export interface QueryExecutorRef {
+  focusTextarea: () => void;
+}
+
+export const QueryExecutorSimple = forwardRef<QueryExecutorRef, QueryExecutorSimpleProps>(({ onExecuteQuery, isExecuting, onCancelQuery, onQueryExecuted }, ref) => {
   // Helper to generate unique IDs
   const generateTabId = () => `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
@@ -255,6 +261,18 @@ export function QueryExecutorSimple({ onExecuteQuery, isExecuting, onCancelQuery
     ));
   };
 
+  // Focus textarea method
+  const focusTextarea = () => {
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+    }
+  };
+
+  // Expose methods to parent via ref
+  useImperativeHandle(ref, () => ({
+    focusTextarea
+  }), []);
+
   // Enhanced execution function for smart query selection
   const executeQuery = async (queryToExecute: string) => {
     if (!queryToExecute || isExecuting) return;
@@ -262,8 +280,12 @@ export function QueryExecutorSimple({ onExecuteQuery, isExecuting, onCancelQuery
     try {
       setError(null);
       await onExecuteQuery(queryToExecute);
+      // Call the callback after successful query execution
+      onQueryExecuted?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Query execution failed');
+      // Still focus on error for better UX
+      onQueryExecuted?.();
     }
   };
 
@@ -662,4 +684,4 @@ export function QueryExecutorSimple({ onExecuteQuery, isExecuting, onCancelQuery
       </div>
     </div>
   );
-}
+});
