@@ -57,6 +57,10 @@ export function VirtualDataGrid({
   const [dropdownDraggedColumn, setDropdownDraggedColumn] = useState<string | null>(null);
   const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
   
+  // Enhanced drag & drop state
+  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
+  const [dropPosition, setDropPosition] = useState<'left' | 'right' | null>(null);
+  
   // State for dynamic height measurement
   const [containerHeight, setContainerHeight] = useState<number>(400); // fallback height
   
@@ -121,21 +125,56 @@ export function VirtualDataGrid({
     };
   }, [data]); // Re-run when data changes to ensure proper measurement
 
-  // Drag & Drop Event Handlers
+  // Enhanced Drag & Drop Event Handlers
   const handleDragStart = (e: React.DragEvent, columnId: string) => {
     e.dataTransfer.setData('text/plain', columnId);
     e.dataTransfer.effectAllowed = 'move';
     setDraggedColumn(columnId);
     
-    // Add visual feedback
-    if (e.currentTarget instanceof HTMLElement) {
-      e.currentTarget.style.opacity = '0.5';
-    }
+    // Clear any previous drag over states
+    setDragOverColumn(null);
+    setDropPosition(null);
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent, targetColumnId: string) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
+    
+    // Skip if dragging over the same column or no column is being dragged
+    if (!draggedColumn || draggedColumn === targetColumnId) return;
+    
+    // Calculate drop position based on mouse position within the column
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mouseX = e.clientX;
+    const columnCenter = rect.left + rect.width / 2;
+    const position = mouseX < columnCenter ? 'left' : 'right';
+    
+    setDragOverColumn(targetColumnId);
+    setDropPosition(position);
+  };
+
+  const handleDragEnter = (e: React.DragEvent, targetColumnId: string) => {
+    e.preventDefault();
+    if (!draggedColumn || draggedColumn === targetColumnId) return;
+    
+    // Set initial hover state
+    setDragOverColumn(targetColumnId);
+  };
+
+  const handleDragLeave = (e: React.DragEvent, targetColumnId: string) => {
+    e.preventDefault();
+    
+    // Only clear if we're actually leaving this column (not moving to a child element)
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mouseX = e.clientX;
+    const mouseY = e.clientY;
+    
+    if (mouseX < rect.left || mouseX > rect.right || mouseY < rect.top || mouseY > rect.bottom) {
+      if (dragOverColumn === targetColumnId) {
+        setDragOverColumn(null);
+        setDropPosition(null);
+      }
+    }
   };
 
   const handleDrop = (e: React.DragEvent, targetColumnId: string) => {
@@ -143,26 +182,25 @@ export function VirtualDataGrid({
     const draggedColumnId = e.dataTransfer.getData('text/plain');
     
     if (draggedColumnId && draggedColumnId !== targetColumnId) {
-      reorderColumns(draggedColumnId, targetColumnId);
+      // Use drop position for more intelligent reordering
+      reorderColumns(draggedColumnId, targetColumnId, dropPosition);
     }
     
+    // Clear all drag states
     setDraggedColumn(null);
-    
-    // Reset visual feedback
-    if (e.currentTarget instanceof HTMLElement) {
-      e.currentTarget.style.opacity = '1';
-    }
+    setDragOverColumn(null);
+    setDropPosition(null);
   };
 
   const handleDragEnd = (e: React.DragEvent) => {
+    // Clear all drag states
     setDraggedColumn(null);
-    if (e.currentTarget instanceof HTMLElement) {
-      e.currentTarget.style.opacity = '1';
-    }
+    setDragOverColumn(null);
+    setDropPosition(null);
   };
 
-  // Column Reordering Logic
-  const reorderColumns = (draggedId: string, targetId: string) => {
+  // Enhanced Column Reordering Logic with Position Awareness
+  const reorderColumns = (draggedId: string, targetId: string, position: 'left' | 'right' | null = null) => {
     setColumnOrder(prev => {
       const newOrder = [...prev];
       const draggedIndex = newOrder.indexOf(draggedId);
@@ -171,8 +209,22 @@ export function VirtualDataGrid({
       // Remove dragged item
       const [draggedItem] = newOrder.splice(draggedIndex, 1);
       
-      // Insert at target position
-      newOrder.splice(targetIndex, 0, draggedItem);
+      // Calculate insertion position based on drop position
+      let insertIndex = targetIndex;
+      
+      if (position === 'right') {
+        // Insert after the target column
+        insertIndex = draggedIndex < targetIndex ? targetIndex : targetIndex + 1;
+      } else {
+        // Insert before the target column (default behavior)
+        insertIndex = draggedIndex < targetIndex ? targetIndex - 1 : targetIndex;
+      }
+      
+      // Ensure insertion index is within bounds
+      insertIndex = Math.max(0, Math.min(newOrder.length, insertIndex));
+      
+      // Insert at calculated position
+      newOrder.splice(insertIndex, 0, draggedItem);
       
       return newOrder;
     });
@@ -359,28 +411,31 @@ export function VirtualDataGrid({
         header: ({ column }: any) => (
           <div 
             className={`flex items-center space-x-2 ${
-              enableColumnControls ? 'cursor-move' : ''
-            } ${draggedColumn === colId ? 'opacity-50' : ''}`}
-            draggable={enableColumnControls}
-            onDragStart={(e) => handleDragStart(e, colId)}
-            onDragOver={handleDragOver}
-            onDrop={(e) => handleDrop(e, colId)}
-            onDragEnd={handleDragEnd}
+              draggedColumn === colId ? 'opacity-60' : ''
+            }`}
           >
             {enableColumnControls && (
-              <GripVertical className="h-3 w-3 text-muted-foreground hover:text-primary transition-colors" />
+              <GripVertical className="h-2.5 w-2.5 text-muted-foreground hover:text-primary transition-colors" />
             )}
             <span className="truncate">{columnName}</span>
             {column.getCanSort() && (
               <span className="text-muted-foreground">
                 {column.getIsSorted() === 'asc' ? (
-                  <ChevronUp className="h-3 w-3" />
+                  <ChevronUp className="h-2.5 w-2.5" />
                 ) : column.getIsSorted() === 'desc' ? (
-                  <ChevronDown className="h-3 w-3" />
+                  <ChevronDown className="h-2.5 w-2.5" />
                 ) : (
-                  <div className="h-3 w-3" />
+                  <div className="h-2.5 w-2.5" />
                 )}
               </span>
+            )}
+            {/* Visual insertion indicator */}
+            {dragOverColumn === colId && dropPosition && (
+              <div 
+                className={`absolute top-0 bottom-0 w-1 bg-primary z-20 ${
+                  dropPosition === 'left' ? 'left-0' : 'right-0'
+                }`}
+              />
             )}
           </div>
         ),
@@ -420,7 +475,7 @@ export function VirtualDataGrid({
     
     // Return row number column first, followed by data columns
     return [rowNumberColumn, ...dataColumns];
-  }, [data, columnOrder, enableColumnControls, draggedColumn, handleDragStart, handleDragOver, handleDrop, handleDragEnd, clientSidePagination, clientPage, clientPageSize, currentDisplayPage, pageSize, totalDataRows, totalRows]);
+  }, [data, columnOrder, enableColumnControls, draggedColumn, dragOverColumn, dropPosition, handleDragStart, handleDragOver, handleDragEnter, handleDragLeave, handleDrop, handleDragEnd, clientSidePagination, clientPage, clientPageSize, currentDisplayPage, pageSize, totalDataRows, totalRows]);
 
   const tableData = useMemo(() => {
     if (!data || !data.data) return [];
@@ -820,13 +875,32 @@ export function VirtualDataGrid({
           <thead className="data-table-header sticky top-0 z-10 backdrop-blur-sm">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
+                {headerGroup.headers.map((header) => {
+                  const isRowNumber = header.column.id === '__row_number__';
+                  const isDraggable = enableColumnControls && !isRowNumber;
+                  const isBeingDragged = draggedColumn === header.column.id;
+                  const isDropTarget = dragOverColumn === header.column.id;
+                  
+                  return (
                   <th
                     key={header.id}
-                    className={`data-table-cell relative px-4 py-4 text-left text-sm font-semibold text-foreground tracking-wider ${
-                      header.column.id === '__row_number__' ? 'row-number-header-cell' : ''
+                    className={`data-table-cell relative text-left text-sm font-semibold text-foreground tracking-wider transition-all duration-200 ${
+                      isRowNumber ? 'row-number-header-cell' : ''
+                    } ${
+                      isDraggable ? 'cursor-move' : ''
+                    } ${
+                      isBeingDragged ? 'opacity-60 scale-95' : ''
+                    } ${
+                      isDropTarget ? 'bg-primary/10' : ''
                     }`}
                     style={{ width: header.column.getSize() }}
+                    draggable={isDraggable}
+                    onDragStart={isDraggable ? (e) => handleDragStart(e, header.column.id) : undefined}
+                    onDragOver={isDraggable ? (e) => handleDragOver(e, header.column.id) : undefined}
+                    onDragEnter={isDraggable ? (e) => handleDragEnter(e, header.column.id) : undefined}
+                    onDragLeave={isDraggable ? (e) => handleDragLeave(e, header.column.id) : undefined}
+                    onDrop={isDraggable ? (e) => handleDrop(e, header.column.id) : undefined}
+                    onDragEnd={isDraggable ? handleDragEnd : undefined}
                   >
                     {header.isPlaceholder ? null : (
                       <>
@@ -842,11 +916,11 @@ export function VirtualDataGrid({
                           {header.column.getCanSort() && (
                             <span className="text-muted-foreground">
                               {header.column.getIsSorted() === 'asc' ? (
-                                <ChevronUp className="h-3 w-3" />
+                                <ChevronUp className="h-2.5 w-2.5" />
                               ) : header.column.getIsSorted() === 'desc' ? (
-                                <ChevronDown className="h-3 w-3" />
+                                <ChevronDown className="h-2.5 w-2.5" />
                               ) : (
-                                <div className="h-3 w-3" />
+                                <div className="h-2.5 w-2.5" />
                               )}
                             </span>
                           )}
@@ -862,7 +936,8 @@ export function VirtualDataGrid({
                       </>
                     )}
                   </th>
-                ))}
+                );
+                })}
               </tr>
             ))}
           </thead>
