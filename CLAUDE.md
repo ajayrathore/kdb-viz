@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository. Always follow best practices and maintain code quality, make sure to always clean up any unwanted unused code created by you. Think hard before propsing any change and try to be cautious not to break existing functionality.
 
 ## Common Development Commands
 

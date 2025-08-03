@@ -12,7 +12,7 @@ import {
   type ColumnDef,
   ColumnResizeMode,
 } from '@tanstack/react-table';
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ChevronsUp, ChevronsDown, Search, Database, Loader2, BarChart3, Download, Settings, GripVertical, PanelLeft, Home, MoveDown, Copy, CheckSquare, Square, CheckSquare2 } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Search, Database, Loader2, BarChart3, Download, Settings, GripVertical, PanelLeft, Home, MoveDown, Copy, CheckSquare, Square, CheckSquare2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ColumnManagementModal } from '@/components/column-management-modal';
@@ -690,25 +690,29 @@ export function VirtualDataGrid({
     }
   };
 
-  const calculateVisibleRows = () => {
-    if (!tableContainerRef.current) return 10; // fallback
-    const containerHeight = tableContainerRef.current.clientHeight;
-    const estimatedRowHeight = 40; // matches the virtualizer estimateSize
-    return Math.floor(containerHeight / estimatedRowHeight) - 2; // -2 for padding
-  };
 
   const scrollPageUp = () => {
-    const visibleRows = calculateVisibleRows();
-    const currentTopIndex = virtualRows.length > 0 ? virtualRows[0].index : 0;
-    const targetIndex = Math.max(0, currentTopIndex - visibleRows);
-    rowVirtualizer.scrollToIndex(targetIndex, { align: 'start' });
+    if (tableContainerRef.current) {
+      requestAnimationFrame(() => {
+        if (tableContainerRef.current) {
+          const currentScrollTop = tableContainerRef.current.scrollTop;
+          const rowHeight = 40; // matches estimateSize from useVirtualizer
+          const targetScrollTop = Math.max(0, currentScrollTop - rowHeight);
+          tableContainerRef.current.scrollTop = targetScrollTop;
+        }
+      });
+    }
   };
 
   const scrollPageDown = () => {
-    const visibleRows = calculateVisibleRows();
-    const currentTopIndex = virtualRows.length > 0 ? virtualRows[0].index : 0;
-    const targetIndex = Math.min(rows.length - 1, currentTopIndex + visibleRows);
-    rowVirtualizer.scrollToIndex(targetIndex, { align: 'start' });
+    if (tableContainerRef.current) {
+      const container = tableContainerRef.current;
+      const currentScrollTop = container.scrollTop;
+      const rowHeight = 40; // matches estimateSize from useVirtualizer
+      const maxScrollTop = container.scrollHeight - container.clientHeight;
+      const targetScrollTop = Math.min(maxScrollTop, currentScrollTop + rowHeight);
+      container.scrollTop = targetScrollTop;
+    }
   };
 
   // Keyboard event handler
@@ -746,10 +750,12 @@ export function VirtualDataGrid({
     }
   };
 
-  // Check if we're at top or bottom for button states
-  const isAtTop = virtualRows.length > 0 ? virtualRows[0].index === 0 : true;
-  const isAtBottom = virtualRows.length > 0 ? 
-    virtualRows[virtualRows.length - 1].index >= rows.length - 1 : true;
+  // Check if we're at top or bottom for button states using scroll position
+  const isAtTop = tableContainerRef.current ? 
+    tableContainerRef.current.scrollTop <= 0 : true;
+  const isAtBottom = tableContainerRef.current ? 
+    tableContainerRef.current.scrollTop >= 
+    tableContainerRef.current.scrollHeight - tableContainerRef.current.clientHeight : true;
 
   if (isLoading) {
     return (
@@ -850,17 +856,17 @@ export function VirtualDataGrid({
                       onClick={scrollPageUp}
                       disabled={isAtTop}
                       className="nav-button btn-financial-secondary p-1.5 rounded"
-                      title="Page up (Page Up key)"
+                      title="Move up one row (Page Up key)"
                     >
-                      <ChevronsUp className="h-4 w-4" />
+                      <ChevronUp className="h-4 w-4" />
                     </button>
                     <button
                       onClick={scrollPageDown}
                       disabled={isAtBottom}
                       className="nav-button btn-financial-secondary p-1.5 rounded"
-                      title="Page down (Page Down key)"
+                      title="Move down one row (Page Down key)"
                     >
-                      <ChevronsDown className="h-4 w-4" />
+                      <ChevronDown className="h-4 w-4" />
                     </button>
                     <button
                       onClick={scrollToBottom}
