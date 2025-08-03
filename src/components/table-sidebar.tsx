@@ -84,27 +84,6 @@ export function TableSidebar({ tables, selectedTable, onTableSelect, onToggleSid
                     </div>
                   </div>
                 </div>
-                
-                {selectedTable === table.name && table.columns.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-border">
-                    <p className="text-xs font-medium text-muted-foreground mb-2">Columns:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {table.columns.slice(0, 8).map((column) => (
-                        <span
-                          key={column}
-                          className="inline-block px-2 py-1 text-xs bg-muted text-muted-foreground rounded"
-                        >
-                          {column}
-                        </span>
-                      ))}
-                      {table.columns.length > 8 && (
-                        <span className="inline-block px-2 py-1 text-xs text-muted-foreground">
-                          +{table.columns.length - 8} more
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
             ))}
           </div>

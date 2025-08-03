@@ -11,6 +11,18 @@ export interface KdbTable {
   rowCount: number;
 }
 
+export interface KdbTableMetadata {
+  tableName: string;
+  columns: KdbColumnMetadata[];
+}
+
+export interface KdbColumnMetadata {
+  name: string;
+  type: string;
+  foreignKey: string;
+  attributes: string;
+}
+
 export interface KdbQueryResult {
   columns: string[];
   data: any[][];

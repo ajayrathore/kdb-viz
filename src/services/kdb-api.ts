@@ -164,6 +164,10 @@ export class KdbApiService {
     }
   }
 
+  async getTableMetadata(tableName: string): Promise<KdbQueryResult> {
+    return this.executeQuery(`0!meta ${tableName}`);
+  }
+
   isConnected(): boolean {
     return this.connectionStatus === 'connected';
   }
