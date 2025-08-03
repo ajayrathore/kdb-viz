@@ -949,6 +949,7 @@ export function VirtualDataGrid({
               <option value={5000}>5,000 rows/page</option>
               <option value={10000}>10,000 rows/page</option>
               <option value={50000}>50,000 rows/page</option>
+              <option value={100000}>100,000 rows/page</option>
               <option value={totalDataRows}>All rows</option>
             </select>
           )}
