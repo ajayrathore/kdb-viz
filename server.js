@@ -1,6 +1,6 @@
 import express from 'express';
 import cors from 'cors';
-import nodeq from 'node-q';
+import * as nodeq from './lib/node-q/index.cjs';
 
 const app = express();
 const PORT = 3001;
@@ -83,6 +83,24 @@ const executeKdbQuery = async (query) => {
         }
         
         console.log(`Query successful: ${query}`, typeof result, Array.isArray(result) ? `Array(${result.length})` : result);
+        
+        // AGGRESSIVE DEBUG: Log the raw result structure
+        console.log('=== RAW KDB+ RESULT DEBUG ===');
+        console.log('Result type:', typeof result);
+        console.log('Is array:', Array.isArray(result));
+        if (result && typeof result === 'object' && !Array.isArray(result)) {
+          console.log('Object keys:', Object.keys(result));
+          Object.keys(result).forEach(key => {
+            const value = result[key];
+            if (Array.isArray(value)) {
+              console.log(`  ${key}: Array[${value.length}] - first few:`, value.slice(0, 3), `(types: ${value.slice(0, 3).map(v => typeof v).join(', ')})`);
+            } else {
+              console.log(`  ${key}:`, value, `(${typeof value})`);
+            }
+          });
+        }
+        console.log('================================');
+        
         resolve(result);
       });
     } catch (error) {
@@ -148,7 +166,7 @@ const getTableMetadata = async (tableName) => {
 };
 
 // Helper function to convert KDB+ data types to JavaScript compatible values
-const convertKdbValue = (value) => {
+const convertKdbValue = (value, columnName = '', expectedType = '') => {
   if (value === null || value === undefined) {
     return null;
   }
@@ -159,6 +177,9 @@ const convertKdbValue = (value) => {
     if (value === -9223372036854775808) return null; // KDB+ null long
     if (isNaN(value)) return null;
     if (!isFinite(value)) return value > 0 ? 'Infinity' : '-Infinity';
+    
+    // REMOVED: Dangerous server-side numeric-to-time conversion
+    // Node-q handles all temporal conversions correctly at deserialization level
   }
   
   // Handle KDB+ timestamps (if it's already a Date object)
@@ -177,6 +198,24 @@ const convertKdbValue = (value) => {
 
 // Helper function to format query results for frontend
 const formatQueryResult = (result) => {
+  console.log('=== DEBUG: formatQueryResult input ===');
+  console.log('Result type:', typeof result);
+  console.log('Result is array:', Array.isArray(result));
+  if (result && typeof result === 'object') {
+    console.log('Result keys:', Object.keys(result));
+    if (Array.isArray(result) && result.length > 0) {
+      console.log('First row:', result[0]);
+      console.log('First row type:', typeof result[0]);
+    } else if (!Array.isArray(result)) {
+      const keys = Object.keys(result);
+      keys.forEach(key => {
+        const value = result[key];
+        console.log(`Column "${key}":`, Array.isArray(value) ? `Array[${value.length}] - first value: ${value[0]} (${typeof value[0]})` : `${value} (${typeof value})`);
+      });
+    }
+  }
+  console.log('=======================================');
+
   if (!result) {
     return {
       columns: [],
@@ -191,18 +230,45 @@ const formatQueryResult = (result) => {
     if (result.length > 0 && typeof result[0] === 'object' && result[0] !== null && !Array.isArray(result[0])) {
       // This is a table result - extract columns from first row
       const columns = Object.keys(result[0]);
-      const data = result.map(row => 
-        columns.map(col => convertKdbValue(row[col]))
-      );
       
-      // Determine column types from first row
+      // First pass: determine types (safe approach - trust node-q, classify strings only)
       const types = columns.map(col => {
         const sampleValue = result[0][col];
-        if (typeof sampleValue === 'number') return 'number';
-        if (typeof sampleValue === 'string') return 'string';
-        if (sampleValue instanceof Date || (typeof sampleValue === 'string' && sampleValue.includes('T'))) return 'datetime';
+        
+        if (typeof sampleValue === 'number') {
+          // Never convert numbers - let them stay as numbers
+          // Node-q already handled any necessary temporal conversions
+          return 'number';
+        }
+        
+        if (typeof sampleValue === 'string') {
+          // Check for KDB+ time patterns - most specific first!
+          // Check exact HH:MM:SS format first (no milliseconds)
+          if (/^\d{2}:\d{2}:\d{2}$/.test(sampleValue)) {
+            return 'second'; // HH:MM:SS from KDB+ second type (18h)
+          }
+          // Then check HH:MM:SS.mmm format  
+          if (/^\d{2}:\d{2}:\d{2}\.\d{3}$/.test(sampleValue)) {
+            return 'time'; // HH:MM:SS.mmm from KDB+ time type (19h)
+          }
+          // Finally check HH:MM format
+          if (/^\d{2}:\d{2}$/.test(sampleValue)) {
+            return 'minute'; // HH:MM from KDB+ minute type (17h)
+          }
+          if (sampleValue.includes('T')) {
+            return 'datetime'; // ISO datetime
+          }
+          return 'string';
+        }
+        
+        if (sampleValue instanceof Date) return 'datetime';
         return 'mixed';
       });
+      
+      // Second pass: convert data using type information
+      const data = result.map(row => 
+        columns.map((col, colIndex) => convertKdbValue(row[col], col, types[colIndex]))
+      );
 
       return {
         columns,
@@ -218,7 +284,7 @@ const formatQueryResult = (result) => {
     if (result.length > 0 && typeof result[0] === 'string') {
       return {
         columns: ['name'],
-        data: result.map(item => [convertKdbValue(item)]),
+        data: result.map(item => [convertKdbValue(item, 'name', 'string')]),
         meta: { types: ['string'], count: result.length }
       };
     }
@@ -226,7 +292,7 @@ const formatQueryResult = (result) => {
     // Simple array result
     return {
       columns: ['result'],
-      data: result.map(item => [convertKdbValue(item)]),
+      data: result.map(item => [convertKdbValue(item, 'result', 'mixed')]),
       meta: { types: ['mixed'], count: result.length }
     };
   }
@@ -246,26 +312,51 @@ const formatQueryResult = (result) => {
     const firstColumn = result[columns[0]];
     const rowCount = Array.isArray(firstColumn) ? firstColumn.length : 1;
     
-    // Convert to row-based format with proper type conversion
-    const data = [];
-    for (let i = 0; i < rowCount; i++) {
-      const row = columns.map(col => {
-        const colData = result[col];
-        const value = Array.isArray(colData) ? colData[i] : colData;
-        return convertKdbValue(value);
-      });
-      data.push(row);
-    }
-
-    // Determine column types
+    // First pass: determine types (safe approach - trust node-q, classify strings only)  
     const types = columns.map(col => {
       const colData = result[col];
       const sampleValue = Array.isArray(colData) ? colData[0] : colData;
-      if (typeof sampleValue === 'number') return 'number';
-      if (typeof sampleValue === 'string') return 'string';
+      
+      if (typeof sampleValue === 'number') {
+        // Never convert numbers - let them stay as numbers
+        // Node-q already handled any necessary temporal conversions
+        return 'number';
+      }
+      
+      if (typeof sampleValue === 'string') {
+        // Check for KDB+ time patterns - most specific first!
+        // Check exact HH:MM:SS format first (no milliseconds)
+        if (/^\d{2}:\d{2}:\d{2}$/.test(sampleValue)) {
+          return 'second'; // HH:MM:SS from KDB+ second type (18h)
+        }
+        // Then check HH:MM:SS.mmm format  
+        if (/^\d{2}:\d{2}:\d{2}\.\d{3}$/.test(sampleValue)) {
+          return 'time'; // HH:MM:SS.mmm from KDB+ time type (19h)
+        }
+        // Finally check HH:MM format
+        if (/^\d{2}:\d{2}$/.test(sampleValue)) {
+          return 'minute'; // HH:MM from KDB+ minute type (17h)
+        }
+        if (sampleValue.includes('T')) {
+          return 'datetime'; // ISO datetime
+        }
+        return 'string';
+      }
+      
       if (sampleValue instanceof Date) return 'datetime';
       return 'mixed';
     });
+
+    // Second pass: convert to row-based format with proper type conversion
+    const data = [];
+    for (let i = 0; i < rowCount; i++) {
+      const row = columns.map((col, colIndex) => {
+        const colData = result[col];
+        const value = Array.isArray(colData) ? colData[i] : colData;
+        return convertKdbValue(value, col, types[colIndex]);
+      });
+      data.push(row);
+    }
 
     return {
       columns,
@@ -280,7 +371,7 @@ const formatQueryResult = (result) => {
   // Single value result
   return {
     columns: ['result'],
-    data: [[convertKdbValue(result)]],
+    data: [[convertKdbValue(result, 'result', 'mixed')]],
     meta: { types: ['mixed'], count: 1 }
   };
 };

@@ -109,7 +109,7 @@ export function VirtualDataGrid({
     // Setup ResizeObserver for dynamic updates
     if (tableContainerRef.current && typeof ResizeObserver !== 'undefined') {
       resizeObserverRef.current = new ResizeObserver((entries) => {
-        for (const entry of entries) {
+        for (const _entry of entries) {
           // Debounce the measurement to avoid excessive updates
           setTimeout(measureContainer, 10);
         }
@@ -198,7 +198,7 @@ export function VirtualDataGrid({
     setDropPosition(null);
   };
 
-  const handleDragEnd = (e: React.DragEvent) => {
+  const handleDragEnd = (_e: React.DragEvent) => {
     // Clear all drag states
     setDraggedColumn(null);
     setDragOverColumn(null);
@@ -303,7 +303,7 @@ export function VirtualDataGrid({
     // Generate headers
     const headers = visibleColumns.map(col => {
       const header = col.columnDef.header;
-      return typeof header === 'string' ? header : data.columns[parseInt(col.id)];
+      return typeof header === 'string' ? header : data?.columns[parseInt(col.id)] || '';
     });
     
     // Generate comma-separated content (CSV)
@@ -358,7 +358,7 @@ export function VirtualDataGrid({
     // Generate headers
     const headers = visibleColumns.map(col => {
       const header = col.columnDef.header;
-      return typeof header === 'string' ? header : data.columns[parseInt(col.id)];
+      return typeof header === 'string' ? header : data?.columns[parseInt(col.id)] || '';
     });
     
     // Generate CSV content
@@ -393,44 +393,32 @@ export function VirtualDataGrid({
   const totalDataRows = data?.data?.length || 0;
   const currentDisplayPage = clientSidePagination ? clientPage : currentPage;
 
-  // Smart time-only column detection utility
+  // Liberal time-only column detection - detects any time-looking strings  
   const isTimeOnlyColumn = (columnIndex: number): boolean => {
     if (!data || !data.data || !data.columns) return false;
     
-    const columnName = data.columns[columnIndex]?.toLowerCase();
-    const sampleSize = Math.min(20, data.data.length); // Check first 20 rows
+    const sampleSize = Math.min(10, data.data.length);
     const sampleData = data.data.slice(0, sampleSize);
     
     let stringCount = 0;
-    let timeOnlyPatternCount = 0;
+    let timePatternCount = 0;
     
     for (const row of sampleData) {
       const value = row[columnIndex];
-      if (typeof value === 'string' && value.length >= 12) {
+      if (typeof value === 'string' && value.trim()) {
         stringCount++;
         
-        // Check if this looks like a KDB+ time-only serialization
-        // Pattern: starts with "2000-01-01T" AND doesn't vary in date part
-        if (value.startsWith('2000-01-01T')) {
-          timeOnlyPatternCount++;
+        // Check for any time-like patterns:
+        // HH:MM:SS, HH:MM:SS.mmm, or legacy 2000-01-01T patterns
+        if (/^\d{1,2}:\d{2}:\d{2}(\.\d{1,3})?$/.test(value) || 
+            value.startsWith('2000-01-01T')) {
+          timePatternCount++;
         }
       }
     }
     
-    // Only consider it time-only if:
-    // 1. Column name suggests time-only (not timestamp/datetime)
-    // 2. ALL string values use the 2000-01-01 pattern (KDB+ time serialization)
-    // 3. Reasonable sample size
-    const hasTimeOnlyName = columnName && 
-      (columnName === 'time' || columnName === 't') && 
-      !columnName.includes('stamp') && 
-      !columnName.includes('date');
-    
-    const allValuesAreTimeOnly = stringCount > 0 && 
-      timeOnlyPatternCount === stringCount && 
-      stringCount >= Math.min(5, sampleSize);
-    
-    return hasTimeOnlyName && allValuesAreTimeOnly;
+    // Consider it time-only if most string values look like time (>= 70%)
+    return stringCount > 0 && (timePatternCount / stringCount) >= 0.7;
   };
 
   const columns = useMemo<ColumnDef<any>[]>(() => {

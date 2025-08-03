@@ -80,45 +80,105 @@ export function ChartModal({ isOpen, onClose, data, displayedData, dataSource = 
            lowerColumn === 't';
   });
 
-  // Smart time-only column detection utility for charts
-  const isTimeOnlyColumn = (columnIndex: number): boolean => {
-    if (!selectedData || !selectedData.data || !selectedData.columns) return false;
+  // Comprehensive temporal column detection for all KDB+ temporal types
+  const isTemporalColumn = (columnIndex: number): { isTemporal: boolean; temporalType: string } => {
+    if (!selectedData || !selectedData.data || !selectedData.columns) {
+      return { isTemporal: false, temporalType: 'none' };
+    }
     
-    const columnName = selectedData.columns[columnIndex]?.toLowerCase();
-    const sampleSize = Math.min(20, selectedData.data.length); // Check first 20 rows
+    const columnName = selectedData.columns[columnIndex];
+    const sampleSize = Math.min(10, selectedData.data.length);
     const sampleData = selectedData.data.slice(0, sampleSize);
     
-    let stringCount = 0;
-    let timeOnlyPatternCount = 0;
-    
-    for (const row of sampleData) {
-      const value = row[columnIndex];
-      if (typeof value === 'string' && value.length >= 12) {
-        stringCount++;
-        
-        // Check if this looks like a KDB+ time-only serialization
-        // Pattern: starts with "2000-01-01T" AND doesn't vary in date part
-        if (value.startsWith('2000-01-01T')) {
-          timeOnlyPatternCount++;
-        }
+    // Check metadata first (most reliable)
+    if (selectedData.meta?.types && selectedData.meta.types[columnIndex]) {
+      const metaType = selectedData.meta.types[columnIndex].toLowerCase();
+      const temporalMetaTypes = ['timestamp', 'date', 'time', 'datetime', 'timespan', 'month', 'minute', 'second'];
+      if (temporalMetaTypes.includes(metaType)) {
+        console.log(`Detected temporal column by metadata: "${columnName}" (${metaType})`);
+        return { isTemporal: true, temporalType: metaType };
       }
     }
     
-    // Only consider it time-only if:
-    // 1. Column name suggests time-only (not timestamp/datetime)
-    // 2. ALL string values use the 2000-01-01 pattern (KDB+ time serialization)
-    // 3. Reasonable sample size
-    const hasTimeOnlyName = columnName && 
-      (columnName === 'time' || columnName === 't') && 
-      !columnName.includes('stamp') && 
-      !columnName.includes('date');
+    // Analyze data patterns
+    let stringCount = 0;
+    let dateObjectCount = 0;
+    let timeOnlyCount = 0;
+    let isoDateCount = 0;
+    let dateOnlyCount = 0;
+    let timestampNumberCount = 0;
     
-    const allValuesAreTimeOnly = stringCount > 0 && 
-      timeOnlyPatternCount === stringCount && 
-      stringCount >= Math.min(5, sampleSize);
+    for (const row of sampleData) {
+      const value = row[columnIndex];
+      
+      if (value instanceof Date) {
+        dateObjectCount++;
+      } else if (typeof value === 'string' && value.trim()) {
+        stringCount++;
+        
+        // Time-only patterns: HH:MM:SS, HH:MM:SS.mmm
+        if (/^\d{1,2}:\d{2}:\d{2}(\.\d{1,3})?$/.test(value) || value.startsWith('2000-01-01T')) {
+          timeOnlyCount++;
+        }
+        // ISO datetime strings
+        else if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
+          isoDateCount++;
+        }
+        // Date-only strings
+        else if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+          dateOnlyCount++;
+        }
+      } else if (typeof value === 'number' && value > 1000000000000) {
+        timestampNumberCount++;
+      }
+    }
     
-    return hasTimeOnlyName && allValuesAreTimeOnly;
+    const totalSample = sampleSize;
+    
+    // Determine temporal type based on patterns (>= 70% threshold)
+    if (dateObjectCount / totalSample >= 0.7) {
+      console.log(`Detected Date object column: "${columnName}" - ${dateObjectCount}/${totalSample} Date objects`);
+      return { isTemporal: true, temporalType: 'dateObject' };
+    }
+    
+    if (stringCount > 0) {
+      if (timeOnlyCount / stringCount >= 0.7) {
+        console.log(`Detected time-only column: "${columnName}" - ${timeOnlyCount}/${stringCount} time patterns`);
+        return { isTemporal: true, temporalType: 'timeOnly' };
+      }
+      
+      if (isoDateCount / stringCount >= 0.7) {
+        console.log(`Detected ISO datetime column: "${columnName}" - ${isoDateCount}/${stringCount} ISO patterns`);
+        return { isTemporal: true, temporalType: 'isoDateTime' };
+      }
+      
+      if (dateOnlyCount / stringCount >= 0.7) {
+        console.log(`Detected date-only column: "${columnName}" - ${dateOnlyCount}/${stringCount} date patterns`);
+        return { isTemporal: true, temporalType: 'dateOnly' };
+      }
+    }
+    
+    if (timestampNumberCount / totalSample >= 0.7) {
+      console.log(`Detected timestamp number column: "${columnName}" - ${timestampNumberCount}/${totalSample} timestamp numbers`);
+      return { isTemporal: true, temporalType: 'timestampNumber' };
+    }
+    
+    // Fallback to column name patterns
+    const lowerColumnName = columnName.toLowerCase();
+    const temporalNamePatterns = ['time', 'date', 'timestamp', 'ts', 'datetime', 'created', 'updated', 'modified'];
+    if (temporalNamePatterns.some(pattern => lowerColumnName.includes(pattern))) {
+      console.log(`Detected temporal column by name: "${columnName}"`);
+      return { isTemporal: true, temporalType: 'namePattern' };
+    }
+    
+    return { isTemporal: false, temporalType: 'none' };
   };
+  
+  // Legacy function for backward compatibility (kept for potential future use)
+  // const isTimeOnlyColumn = (columnIndex: number): boolean => {
+  //   const result = isTemporalColumn(columnIndex);
+  //   return result.isTemporal && result.temporalType === 'timeOnly';
+  // };
 
   // Handle modal state changes - reset on close, set defaults on open
   useEffect(() => {
@@ -250,7 +310,177 @@ export function ChartModal({ isOpen, onClose, data, displayedData, dataSource = 
         return value instanceof Date;
       };
 
-      const xIsTime = selectedData.data.length > 0 && isTimeData(selectedData.data[0][xColumnIndex]);
+      // Revolutionary dual-strategy temporal conversion: linear axis for time-within-day, date axis for timestamps
+      const convertToElapsedSeconds = (dateObj: Date): number => {
+        const hours = dateObj.getHours();
+        const minutes = dateObj.getMinutes();
+        const seconds = dateObj.getSeconds();
+        const milliseconds = dateObj.getMilliseconds();
+        
+        // Convert to total seconds since midnight (with millisecond precision)
+        const totalSeconds = hours * 3600 + minutes * 60 + seconds + milliseconds / 1000;
+        return totalSeconds;
+      };
+      
+      const convertTemporalForChart = (value: any, isTimeWithinDay: boolean): any => {
+        try {
+          // Handle null/undefined
+          if (value == null) return value;
+          
+          // Handle Date objects with dual strategy
+          if (value instanceof Date) {
+            const year = value.getFullYear();
+            const month = value.getMonth();
+            const day = value.getDate();
+            const hours = value.getHours();
+            const minutes = value.getMinutes();
+            const seconds = value.getSeconds();
+            
+            console.log(`🔄 Converting Date object: ${value.toISOString()} (${year}-${month+1}-${day} ${hours}:${minutes}:${seconds})`);
+            
+            // Strategy 1: Time-within-day data → elapsed seconds (for linear axis)
+            if (isTimeWithinDay && year === 2000 && month === 0 && day === 1) {
+              const elapsedSeconds = convertToElapsedSeconds(value);
+              console.log(`   🕐 Time-within-day → elapsed seconds: ${value.toISOString()} → ${elapsedSeconds}s (${Math.floor(elapsedSeconds/3600)}:${Math.floor((elapsedSeconds%3600)/60)}:${Math.floor(elapsedSeconds%60)})`);
+              return elapsedSeconds;
+            } 
+            // Strategy 2: Genuine timestamps → ISO strings (for date axis)
+            else {
+              const isoString = value.toISOString();
+              console.log(`   📅 Genuine timestamp → ISO string: ${value.toISOString()} → ${isoString}`);
+              return isoString;
+            }
+          }
+          
+          // Handle time-only strings from our custom KDB+ time handling (type 19h)
+          if (typeof value === 'string') {
+            // Time-only patterns: H:MM:SS, HH:MM:SS, HH:MM:SS.mmm
+            if (/^\d{1,2}:\d{2}:\d{2}(\.\d{1,3})?$/.test(value)) {
+              // FIXED: Return time strings as-is for direct display
+              // No more conversion to elapsed seconds that show as "86k"
+              console.log(`   ✅ Time string (preserved): ${value}`);
+              return value;
+            }
+            
+            // Legacy 2000-01-01T patterns from old time handling
+            if (value.startsWith('2000-01-01T')) {
+              // FIXED: Extract just the time part and return as clean time string
+              const timePart = value.substring(11).replace('Z', '');
+              console.log(`   ✅ Legacy time → clean time string: ${value} → ${timePart}`);
+              return timePart;
+            }
+            
+            // ISO datetime strings (genuine timestamps - keep for date axis)
+            if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) {
+              console.log(`   📅 ISO datetime (preserved): ${value}`);
+              return value;
+            }
+            
+            // Date-only strings (genuine dates - keep for date axis)
+            if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+              console.log(`   📅 Date-only (preserved): ${value}`);
+              return value;
+            }
+          }
+          
+          // Handle numbers that might be timestamps (milliseconds since epoch)
+          if (typeof value === 'number' && value > 1000000000000) {
+            const dateFromMs = new Date(value);
+            const isoString = dateFromMs.toISOString();
+            console.log(`Converting timestamp number for chart: ${value} -> ${isoString}`);
+            return isoString;
+          }
+          
+          return value; // Non-temporal data, return as-is
+        } catch (error) {
+          console.warn(`Error converting temporal value for chart:`, value, error);
+          return value; // Fallback to original value
+        }
+      };
+      
+      // Legacy function name for backward compatibility (kept for potential future use)
+      // const convertTimeForChart = (value: any) => convertTemporalForChart(value, xColumnIndex);
+
+      const temporalInfo = isTemporalColumn(xColumnIndex);
+      
+      // Enhanced KDB+ time-within-day pattern detection with comprehensive debugging
+      const isKdbTimeWithinDayPattern = (): boolean => {
+        if (!selectedData.data.length) return false;
+        
+        console.log(`🔍 DEBUG: Analyzing column "${selectedData.columns[xColumnIndex]}" for KDB+ time-within-day patterns...`);
+        
+        const sampleSize = Math.min(10, selectedData.data.length);
+        let dateObjectCount = 0;
+        let kdbFictitiousDateCount = 0;
+        const sampleValues = [];
+        
+        for (let i = 0; i < sampleSize; i++) {
+          const value = selectedData.data[i][xColumnIndex];
+          sampleValues.push(value);
+          
+          if (value instanceof Date) {
+            dateObjectCount++;
+            
+            // Check if date is KDB+ fictitious date (2000-01-01) with debugging
+            const year = value.getFullYear();
+            const month = value.getMonth();
+            const day = value.getDate();
+            const hours = value.getHours();
+            const minutes = value.getMinutes();
+            const seconds = value.getSeconds();
+            
+            console.log(`📅 Sample Date ${i}: ${value.toISOString()} (${year}-${month+1}-${day} ${hours}:${minutes}:${seconds})`);
+            
+            if (year === 2000 && month === 0 && day === 1) {
+              kdbFictitiousDateCount++;
+              console.log(`   ✅ Matches KDB+ 2000-01-01 pattern`);
+            } else {
+              console.log(`   ❌ Not KDB+ pattern (${year}-${month+1}-${day})`);
+            }
+          } else {
+            console.log(`📊 Sample Value ${i}: ${value} (${typeof value})`);
+          }
+        }
+        
+        // Lower threshold from 0.8 to 0.7 for better detection
+        const threshold = 0.7;
+        const isKdbPattern = dateObjectCount > 0 && (kdbFictitiousDateCount / dateObjectCount) >= threshold;
+        
+        console.log(`🎯 KDB+ Pattern Analysis Results:`);
+        console.log(`   - Date objects found: ${dateObjectCount}/${sampleSize}`);
+        console.log(`   - KDB+ 2000-01-01 dates: ${kdbFictitiousDateCount}/${dateObjectCount}`);
+        console.log(`   - Threshold: ${threshold} (${(kdbFictitiousDateCount / dateObjectCount).toFixed(2)})`);
+        console.log(`   - Is KDB+ time-within-day: ${isKdbPattern}`);
+        
+        return isKdbPattern;
+      };
+      
+      const isTimeWithinDayData = (
+        temporalInfo.temporalType === 'timeOnly' ||
+        temporalInfo.temporalType === 'time' ||
+        temporalInfo.temporalType === 'second' ||
+        temporalInfo.temporalType === 'minute' ||
+        isKdbTimeWithinDayPattern()
+      );
+      
+      // Enhanced debugging for time-within-day detection results
+      console.log(`🎯 Time-within-Day Detection Results for "${selectedData.columns[xColumnIndex]}":`);
+      console.log(`   - temporalInfo.temporalType: "${temporalInfo.temporalType}"`);
+      console.log(`   - matches 'timeOnly': ${temporalInfo.temporalType === 'timeOnly'}`);
+      console.log(`   - matches 'time': ${temporalInfo.temporalType === 'time'}`);
+      console.log(`   - matches 'second': ${temporalInfo.temporalType === 'second'}`);
+      console.log(`   - matches 'minute': ${temporalInfo.temporalType === 'minute'}`);
+      console.log(`   - KDB+ pattern detected: ${isKdbTimeWithinDayPattern()}`);
+      console.log(`   - FINAL isTimeWithinDayData: ${isTimeWithinDayData}`);
+      console.log(`   - Will apply time-only formatting: ${isTimeWithinDayData}`);
+      
+      const xIsTime = selectedData.data.length > 0 && (
+        isTimeData(selectedData.data[0][xColumnIndex]) || 
+        temporalInfo.isTemporal ||
+        isTimeWithinDayData
+      );
+      
+      console.log(`X-axis temporal detection: column="${selectedData.columns[xColumnIndex]}", xIsTime=${xIsTime}, temporalType=${temporalInfo.temporalType}, isTimeWithinDay=${isTimeWithinDayData}`);
       
       // Get target tick count from our calculation
       const targetTicks = filteredTickValues && filteredTickValues.length > 0 
@@ -274,7 +504,10 @@ export function ChartModal({ isOpen, onClose, data, displayedData, dataSource = 
           if (yColumnIndex !== -1) {
             selectedData.data.forEach(row => {
               if (row[xColumnIndex] != null && row[yColumnIndex] != null) {
-                xValueSet.add(row[xColumnIndex]);
+                const xValue = (temporalInfo.isTemporal || isTimeWithinDayData)
+                  ? convertTemporalForChart(row[xColumnIndex], isTimeWithinDayData) 
+                  : row[xColumnIndex];
+                xValueSet.add(xValue);
               }
             });
           }
@@ -290,7 +523,10 @@ export function ChartModal({ isOpen, onClose, data, displayedData, dataSource = 
           const seriesDataMap = new Map();
           selectedData.data.forEach(row => {
             if (row[xColumnIndex] != null && row[yColumnIndex] != null) {
-              seriesDataMap.set(row[xColumnIndex], Number(row[yColumnIndex]) || 0);
+              const xValue = (temporalInfo.isTemporal || isTimeWithinDayData)
+                ? convertTemporalForChart(row[xColumnIndex], isTimeWithinDayData)
+                : row[xColumnIndex];
+              seriesDataMap.set(xValue, Number(row[yColumnIndex]) || 0);
             }
           });
           
@@ -339,7 +575,12 @@ export function ChartModal({ isOpen, onClose, data, displayedData, dataSource = 
           if (yColumnIndex === -1) return;
           
           const seriesData = selectedData.data
-            .map(row => ({ x: row[xColumnIndex], y: row[yColumnIndex] }))
+            .map(row => ({ 
+              x: (temporalInfo.isTemporal || isTimeWithinDayData) 
+                ? convertTemporalForChart(row[xColumnIndex], isTimeWithinDayData) 
+                : row[xColumnIndex], 
+              y: row[yColumnIndex] 
+            }))
             .filter(d => d.x != null && d.y != null);
           
           if (seriesData.length === 0) return;
@@ -734,17 +975,65 @@ export function ChartModal({ isOpen, onClose, data, displayedData, dataSource = 
         barmode: chartConfig.type === 'bar' ? 'group' : undefined
       };
 
-      // Time-specific axis configuration with smart formatting
+      // 🚀 REVOLUTIONARY: Smart dual-axis configuration - the key to fixing fictitious dates!
       if (xIsTime) {
-        layout.xaxis.type = 'date';
-        
-        // Smart tick format based on column type
-        if (isTimeOnlyColumn(xColumnIndex)) {
-          // For confirmed time-only columns, show just time
-          layout.xaxis.tickformat = '%H:%M:%S';
+        if (isTimeWithinDayData) {
+          console.log('✅ FIXED: Using CATEGORY axis for time strings - direct display!');
+          
+          // Strategy: CATEGORY axis with time strings (direct display!)
+          layout.xaxis.type = 'category'; // 🎯 Display time strings as labels!
+          
+          // Get all X values (which are now time strings like "00:00:05")
+          const allXValues = traces.flatMap(trace => trace.x || []);
+          const uniqueXValues = [...new Set(allXValues)].sort();
+          
+          console.log(`📊 Time string category axis: ${uniqueXValues.length} unique time strings`);
+          console.log(`🔍 Sample time strings:`, uniqueXValues.slice(0, 5));
+          
+          // For category axis, Plotly displays time strings directly as labels
+          // No manual tick control needed - time strings show as-is!
+          layout.xaxis.tickmode = 'auto';
+          
+          console.log('✅ CATEGORY axis will display time strings directly as labels!');
+          
+          // Axis labeling and formatting
+          layout.xaxis.title = selectedData.columns[xColumnIndex];
+          layout.xaxis.showticklabels = true;
+          layout.xaxis.tickfont = { size: 12 };
+          layout.xaxis.automargin = true;
+          
+          console.log('🎯 CATEGORY axis configured - time strings display directly as labels!');
+        } else {
+          console.log('📅 Using DATE axis for genuine timestamp data');
+          
+          // Strategy: DATE axis for genuine timestamps/dates
+          layout.xaxis.type = 'date';
+          
+          // Smart formatting based on temporal type
+          switch (temporalInfo.temporalType) {
+            case 'dateOnly':
+            case 'date':
+              layout.xaxis.tickformat = '%Y-%m-%d';
+              console.log('Applied date-only formatting');
+              break;
+              
+            case 'month':
+              layout.xaxis.tickformat = '%Y-%m';
+              console.log('Applied month formatting');
+              break;
+              
+            case 'timestamp':
+            case 'datetime':
+            case 'dateObject':
+            case 'isoDateTime':
+            case 'timestampNumber':
+            case 'namePattern':
+            default:
+              // Let Plotly auto-format for genuine timestamps
+              console.log('Using Plotly auto-formatting for genuine timestamps');
+              break;
+          }
         }
-        // For timestamp columns: omit tickformat to enable Plotly's intelligent auto-formatting
-        // This automatically adapts format based on data range and chart size
       }
 
       // Plotly configuration
@@ -754,6 +1043,21 @@ export function ChartModal({ isOpen, onClose, data, displayedData, dataSource = 
         staticPlot: false
       };
 
+      // Debug: Log revolutionary dual-strategy implementation
+      console.log('🚀 === REVOLUTIONARY DUAL-STRATEGY CHART CREATION ===');
+      console.log('📊 Column:', selectedData.columns[xColumnIndex]);
+      console.log('⚡ xIsTime:', xIsTime);  
+      console.log('🔍 Temporal info:', temporalInfo);
+      console.log('🕐 Is time-within-day?:', isTimeWithinDayData);
+      console.log('📈 Axis strategy:', isTimeWithinDayData ? 'LINEAR (elapsed seconds)' : 'DATE (ISO strings)');
+      console.log('🎯 Will eliminate fictitious dates?:', isTimeWithinDayData);
+      console.log('📋 Sample original X values:', selectedData.data.slice(0, 5).map(row => row[xColumnIndex]));
+      console.log('🔄 Sample converted X values:', traces[0]?.x?.slice(0, 5));
+      console.log('⚙️  Axis type configured:', layout.xaxis.type);
+      console.log('📐 Layout xaxis config:', JSON.stringify(layout.xaxis, null, 2));
+      console.log('📊 Total traces:', traces.length);
+      console.log('🎉 ============================================== 🎉');
+      
       // Clear and create new plot with all traces
       Plotly.newPlot(chartRef.current, traces, layout, config);
 
