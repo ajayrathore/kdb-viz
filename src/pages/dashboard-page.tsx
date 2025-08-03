@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { TableSidebar } from '@/components/table-sidebar';
 import { VirtualDataGrid } from '@/components/virtual-data-grid';
-import { TableMetadataDisplay } from '@/components/table-metadata-display';
 import { QueryExecutorSimple, QueryExecutorRef } from '@/components/query-executor-simple';
 import { ChartModal } from '@/components/chart-modal-plotly';
 import { SettingsModal } from '@/components/settings-modal';
@@ -49,7 +48,6 @@ export function DashboardPage({
   const [, setLastExecutedQuery] = useState<string | null>(null);
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
   const [browseTables, setBrowseTables] = useState(false);
-  const [isDisplayingMetadata, setIsDisplayingMetadata] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [chartDataSource, setChartDataSource] = useState<'full' | 'displayed'>('full');
   const [displayedData, setDisplayedData] = useState<KdbQueryResult | null>(null);
@@ -137,7 +135,6 @@ export function DashboardPage({
 
   const loadTableMetadata = async (tableName: string) => {
     setIsLoading(true);
-    setIsDisplayingMetadata(true);
     try {
       const result = await executeQuery(`0!meta ${tableName}`);
       setCurrentData(result);
@@ -159,7 +156,6 @@ export function DashboardPage({
 
   const handleExecuteQuery = async (query: string): Promise<KdbQueryResult> => {
     setIsExecuting(true);
-    setIsDisplayingMetadata(false);
     const startTime = Date.now();
     try {
       const result = await executeQuery(query);
@@ -301,69 +297,43 @@ export function DashboardPage({
             {/* Main Content Panel */}
             <Panel defaultSize={80}>
               <div className="h-full flex flex-col overflow-hidden">
-                {/* Conditional rendering: Metadata Display or Virtual Data Grid */}
-                {isDisplayingMetadata && selectedTable ? (
-                  <TableMetadataDisplay
-                    tableName={selectedTable}
-                    data={currentData}
-                    isLoading={isLoading}
-                    onOpenChart={() => setIsChartModalOpen(true)}
-                    hasData={!!(currentData && currentData.data.length > 0)}
-                    enableColumnControls={true}
-                    isSidebarVisible={browseTables && isSidebarVisible}
-                    onShowSidebar={browseTables ? toggleSidebar : undefined}
-                  />
-                ) : (
-                  <VirtualDataGrid
-                    data={currentData}
-                    isLoading={isLoading}
-                    onPageChange={selectedTable ? handlePageChange : undefined}
-                    currentPage={currentPage}
-                    pageSize={pageSize}
-                    totalRows={totalRows}
-                    clientSidePagination={!selectedTable} // Use client-side for queries, server-side for tables
-                    onOpenChart={() => setIsChartModalOpen(true)}
-                    hasData={!!(currentData && currentData.data.length > 0)}
-                    enableColumnControls={true}
-                    isSidebarVisible={browseTables && isSidebarVisible}
-                    onShowSidebar={browseTables ? toggleSidebar : undefined}
-                    onDisplayedDataChange={handleDisplayedDataChange}
-                  />
-                )}
+                {/* Virtual Data Grid - handles both regular data and metadata */}
+                <VirtualDataGrid
+                  data={currentData}
+                  isLoading={isLoading}
+                  onPageChange={selectedTable ? handlePageChange : undefined}
+                  currentPage={currentPage}
+                  pageSize={pageSize}
+                  totalRows={totalRows}
+                  clientSidePagination={!selectedTable} // Use client-side for queries, server-side for tables
+                  onOpenChart={() => setIsChartModalOpen(true)}
+                  hasData={!!(currentData && currentData.data.length > 0)}
+                  enableColumnControls={true}
+                  isSidebarVisible={browseTables && isSidebarVisible}
+                  onShowSidebar={browseTables ? toggleSidebar : undefined}
+                  onDisplayedDataChange={handleDisplayedDataChange}
+                />
               </div>
             </Panel>
           </PanelGroup>
         ) : (
           <div className="h-full flex flex-col overflow-hidden transition-all duration-300 ease-in-out">
-            {/* Conditional rendering: Metadata Display or Virtual Data Grid - Full Width */}
-            {isDisplayingMetadata && selectedTable ? (
-              <TableMetadataDisplay
-                tableName={selectedTable}
-                data={currentData}
-                isLoading={isLoading}
-                onOpenChart={() => setIsChartModalOpen(true)}
-                hasData={!!(currentData && currentData.data.length > 0)}
-                enableColumnControls={true}
-                isSidebarVisible={browseTables && isSidebarVisible}
-                onShowSidebar={browseTables ? toggleSidebar : undefined}
-              />
-            ) : (
-              <VirtualDataGrid
-                data={currentData}
-                isLoading={isLoading}
-                onPageChange={selectedTable ? handlePageChange : undefined}
-                currentPage={currentPage}
-                pageSize={pageSize}
-                totalRows={totalRows}
-                clientSidePagination={!selectedTable} // Use client-side for queries, server-side for tables
-                onOpenChart={() => setIsChartModalOpen(true)}
-                hasData={!!(currentData && currentData.data.length > 0)}
-                enableColumnControls={true}
-                isSidebarVisible={browseTables && isSidebarVisible}
-                onShowSidebar={browseTables ? toggleSidebar : undefined}
-                onDisplayedDataChange={handleDisplayedDataChange}
-              />
-            )}
+            {/* Virtual Data Grid - handles both regular data and metadata */}
+            <VirtualDataGrid
+              data={currentData}
+              isLoading={isLoading}
+              onPageChange={selectedTable ? handlePageChange : undefined}
+              currentPage={currentPage}
+              pageSize={pageSize}
+              totalRows={totalRows}
+              clientSidePagination={!selectedTable} // Use client-side for queries, server-side for tables
+              onOpenChart={() => setIsChartModalOpen(true)}
+              hasData={!!(currentData && currentData.data.length > 0)}
+              enableColumnControls={true}
+              isSidebarVisible={browseTables && isSidebarVisible}
+              onShowSidebar={browseTables ? toggleSidebar : undefined}
+              onDisplayedDataChange={handleDisplayedDataChange}
+            />
             </div>
           )}
             </div>
