@@ -1173,7 +1173,7 @@ export function VirtualDataGrid({
                 <td 
                   colSpan={columns.length} 
                   style={{ 
-                    height: Math.max(0, totalSize - (virtualRows[virtualRows.length - 1]?.end || 0)) + 100 // Extra 100px padding
+                    height: Math.max(0, totalSize - (virtualRows[virtualRows.length - 1]?.end || 0)) + 8 // Minimal buffer to prevent row cropping
                   }} 
                 />
               </tr>
