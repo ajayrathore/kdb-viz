@@ -133,6 +133,17 @@ export function VirtualDataGrid({
 
   // Enhanced Drag & Drop Event Handlers
   const handleDragStart = (e: React.DragEvent, columnId: string) => {
+    // Check if mouse is in resize zone (within 10px of right edge)
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mouseX = e.clientX;
+    const distanceFromRightEdge = rect.right - mouseX;
+    
+    // Prevent drag if mouse is in resize zone
+    if (distanceFromRightEdge <= 10) {
+      e.preventDefault();
+      return;
+    }
+
     e.dataTransfer.setData('text/plain', columnId);
     e.dataTransfer.effectAllowed = 'move';
     setDraggedColumn(columnId);
@@ -557,25 +568,28 @@ export function VirtualDataGrid({
             }
             return formatted;
           }
-          if (typeof value === 'string') {
+          // Handle both strings and KDB+ symbol objects
+          if (typeof value === 'string' || (value && value.__kdb_type === 'symbol')) {
+            const displayValue = value.__kdb_type === 'symbol' ? value.value : value;
+            
             // Smart timestamp handling - only strip date for confirmed time-only columns
-            if (value.startsWith('2000-01-01T') && value.length >= 23 && isTimeOnlyColumn(index)) {
+            if (displayValue.startsWith('2000-01-01T') && displayValue.length >= 23 && isTimeOnlyColumn(index)) {
               // Extract just the time portion HH:MM:SS.mmm for confirmed time-only columns
-              return <span className="text-sm text-foreground">{value.substring(11, 23)}</span>;
+              return <span className="text-sm text-foreground">{displayValue.substring(11, 23)}</span>;
             }
             // For actual timestamps, preserve full datetime display
-            if (value.startsWith('2000-01-01T') || value.match(/^\d{4}-\d{2}-\d{2}T/)) {
+            if (displayValue.startsWith('2000-01-01T') || displayValue.match(/^\d{4}-\d{2}-\d{2}T/)) {
               // Format timestamp for better readability: "2024-01-15 14:30:25.123"
-              return <span className="text-sm text-foreground">{value.replace('T', ' ').replace('Z', '')}</span>;
+              return <span className="text-sm text-foreground">{displayValue.replace('T', ' ').replace('Z', '')}</span>;
             }
-            // Check if it's a symbol/ticker
-            if (columnName.includes('sym') || columnName.includes('ticker') || columnName.includes('symbol')) {
-              return <span className="font-semibold text-primary">{value}</span>;
+            // Check if it's a symbol/ticker (KDB+ symbols or column name based)
+            if (value.__kdb_type === 'symbol' || columnName.includes('sym') || columnName.includes('ticker') || columnName.includes('symbol')) {
+              return <span className="font-semibold text-primary">{displayValue}</span>;
             }
-            if (value.length > 50) {
+            if (displayValue.length > 50) {
               return (
-                <span title={value} className="truncate">
-                  {value.substring(0, 50) + '...'}
+                <span title={displayValue} className="truncate">
+                  {displayValue.substring(0, 50) + '...'}
                 </span>
               );
             }

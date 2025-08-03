@@ -241,6 +241,11 @@ const formatQueryResult = (result) => {
           return 'number';
         }
         
+        // Check for KDB+ symbol objects first
+        if (typeof sampleValue === 'object' && sampleValue !== null && sampleValue.__kdb_type === 'symbol') {
+          return 'symbol';
+        }
+        
         if (typeof sampleValue === 'string') {
           // Check for KDB+ time patterns - most specific first!
           // Check exact HH:MM:SS format first (no milliseconds)
