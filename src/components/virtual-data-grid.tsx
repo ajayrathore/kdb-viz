@@ -432,6 +432,30 @@ export function VirtualDataGrid({
     return stringCount > 0 && (timePatternCount / stringCount) >= 0.7;
   };
 
+  // Text width calculation function for auto-sizing columns
+  const calculateColumnNameWidth = (columnName: string): number => {
+    // JetBrains Mono character width at 0.8125rem (13px) with font-weight: 700
+    const characterWidthAt08125rem = 9.1; // Adjusted for header font size and weight
+    
+    // Calculate base text width
+    const textWidth = columnName.length * characterWidthAt08125rem;
+    
+    // Account for header overhead:
+    // - Padding: 16px left + 16px right (px-4)
+    // - Sort icon space: 12px (including margin)
+    // - Drag handle space: 12px (if enabled, but we'll include it in calculation)
+    // - Resize handle: 4px
+    // - Safety margin: 8px for rendering variations
+    const headerOverhead = 16 + 16 + 12 + 12 + 4 + 8; // 68px total
+    
+    const calculatedWidth = Math.ceil(textWidth + headerOverhead);
+    
+    // Apply intelligent constraints:
+    // - Minimum: 80px (ensure usability)
+    // - Maximum: 300px (prevent extremely wide columns)
+    return Math.max(80, Math.min(300, calculatedWidth));
+  };
+
   const columns = useMemo<ColumnDef<any>[]>(() => {
     if (!data || !data.columns || columnOrder.length === 0) return [];
     
@@ -542,7 +566,7 @@ export function VirtualDataGrid({
             )}
           </div>
         ),
-        size: 150, // Default column width
+        size: calculateColumnNameWidth(columnName), // Auto-size based on column name
         minSize: 50, // Minimum column width
         maxSize: 500, // Maximum column width
         enableResizing: true,
