@@ -24,6 +24,12 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
     --radius: 0.5rem;
+    
+    /* Table colors for light mode */
+    --table-header: 220 20% 92%;       /* Light gray with blue tint for headers */
+    --table-row-even: 0 0% 98%;        /* Very light gray for alternating rows */
+    --table-row-hover: 220 20% 96%;    /* Subtle hover state */
+    --table-border: 220 13% 85%;       /* Soft border color */
   }
 
   .dark {
@@ -75,7 +81,7 @@
     --ring: 142 70% 45%;               /* Match primary for focus rings */
     
     /* Financial data table colors */
-    --table-header: 217.2 32.6% 22%;   /* Table header background - more prominent */
+    --table-header: 217.2 40% 18%;     /* Table header background - darker for more prominence */
     --table-row-even: 217.2 32.6% 8%;  /* Alternating row color */
     --table-row-hover: 217.2 45% 15%;  /* Row hover state */
     --table-border: 217.2 32.6% 25%;   /* Table borders */
@@ -541,12 +547,19 @@
   }
   
   .data-table-header {
-    background: hsl(var(--table-header));
-    border-bottom: 3px solid hsl(var(--border-strong));
-    box-shadow: 0 2px 4px hsl(var(--background) / 0.1);
+    background: linear-gradient(
+      to bottom,
+      hsl(var(--table-header) / 0.95),
+      hsl(var(--table-header))
+    );
+    border-bottom: 4px solid hsl(var(--primary) / 0.3);
+    box-shadow: 
+      0 2px 4px hsl(var(--background) / 0.2),
+      0 4px 8px hsl(var(--background) / 0.1),
+      inset 0 -1px 0 hsl(var(--foreground) / 0.1);
   }
   
-  /* Ultra-aggressive header height reduction */
+  /* Enhanced header styling for prominence */
   .data-table-header th {
     height: 28px !important;
     min-height: 28px !important;
@@ -554,42 +567,44 @@
     line-height: 1 !important;
     padding: 2px 8px !important;
     vertical-align: middle !important;
-    color: hsl(var(--foreground) / 0.95) !important;
-    font-weight: 600 !important;
-    font-size: 0.8rem !important;
+    color: hsl(60 100% 50%) !important;
+    font-weight: 800 !important;
+    font-size: 0.875rem !important;
+    letter-spacing: 0.025em !important;
   }
 
   /* Ultra-high specificity CSS to override TailwindCSS inline classes */
   .data-table-header th.text-foreground {
-    color: hsl(var(--foreground) / 1) !important;
+    color: hsl(60 100% 50%) !important;
   }
   
   .data-table-header th.font-semibold {
-    font-weight: 700 !important;
+    font-weight: 800 !important;
   }
   
   .data-table-header th.text-sm {
-    font-size: 0.85rem !important;
+    font-size: 0.875rem !important;
   }
   
   /* Additional specificity targeting the exact element structure */
   thead.data-table-header th.data-table-cell.text-foreground {
-    color: hsl(var(--foreground) / 1) !important;
-    font-weight: 700 !important;
-    font-size: 0.85rem !important;
+    color: hsl(60 100% 50%) !important;
+    font-weight: 800 !important;
+    font-size: 0.875rem !important;
+    letter-spacing: 0.025em !important;
   }
   
   /* Backup attribute selectors for maximum specificity */
   th[class*="text-foreground"].data-table-cell {
-    color: hsl(var(--foreground) / 1) !important;
+    color: hsl(60 100% 50%) !important;
   }
   
   th[class*="font-semibold"].data-table-cell {
-    font-weight: 700 !important;
+    font-weight: 800 !important;
   }
   
   th[class*="text-sm"].data-table-cell {
-    font-size: 0.85rem !important;
+    font-size: 0.875rem !important;
   }
   
   /* Target all header content elements */
@@ -616,8 +631,9 @@
   /* Ensure text spans don't add height */
   .data-table-header th span {
     line-height: 1 !important;
-    color: hsl(var(--foreground) / 0.9) !important;
-    font-weight: 600 !important;
+    color: hsl(60 100% 50%) !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.025em !important;
   }
   
   /* Nuclear option - force everything compact */
@@ -632,6 +648,32 @@
   /* Compact resize handle */
   .data-table-header th .cursor-col-resize {
     height: 28px !important;
+  }
+  
+  /* Enhanced hover effects for sortable columns */
+  .data-table-header th .cursor-pointer {
+    transition: all 0.2s ease;
+  }
+  
+  .data-table-header th .cursor-pointer:hover {
+    color: hsl(var(--primary)) !important;
+    background: hsl(var(--primary) / 0.08);
+    padding-left: 10px !important;
+    padding-right: 6px !important;
+  }
+  
+  .data-table-header th .cursor-pointer:hover span {
+    color: hsl(45 100% 55%) !important;
+    text-shadow: 0 0 8px hsl(60 100% 50% / 0.3);
+  }
+  
+  /* Sort icon animation */
+  .data-table-header th .cursor-pointer svg {
+    transition: transform 0.2s ease;
+  }
+  
+  .data-table-header th .cursor-pointer:hover svg {
+    transform: scale(1.2);
   }
   
   .data-table-row:nth-child(even) {
