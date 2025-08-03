@@ -702,11 +702,9 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
         if (isTimeOnlyColumn(xColumnIndex)) {
           // For confirmed time-only columns, show just time
           layout.xaxis.tickformat = '%H:%M:%S';
-        } else {
-          // For timestamp columns, show full datetime or let Plotly auto-format
-          // Use a more compact format that shows both date and time
-          layout.xaxis.tickformat = '%Y-%m-%d<br>%H:%M:%S';
         }
+        // For timestamp columns: omit tickformat to enable Plotly's intelligent auto-formatting
+        // This automatically adapts format based on data range and chart size
       }
 
       // Plotly configuration
