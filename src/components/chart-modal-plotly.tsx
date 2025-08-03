@@ -33,9 +33,11 @@ interface ChartModalProps {
   isOpen: boolean;
   onClose: () => void;
   data: KdbQueryResult;
+  displayedData?: KdbQueryResult;
+  dataSource?: 'full' | 'displayed';
 }
 
-export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
+export function ChartModal({ isOpen, onClose, data, displayedData, dataSource = 'full' }: ChartModalProps) {
   const [chartConfig, setChartConfig] = useState<ChartConfig>({
     type: 'line',
     xColumn: '',
@@ -50,19 +52,23 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
   const [filteredTickValues, setFilteredTickValues] = useState<string[] | null>(null);
   const chartRef = useRef<HTMLDivElement>(null);
   const resizeStartRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
+  const prevIsOpenRef = useRef(isOpen);
 
-  const numericColumns = data.columns.filter((_, index) => {
-    const sampleValues = data.data.slice(0, 10).map(row => row[index]);
+  // Select data source based on configuration
+  const selectedData = dataSource === 'displayed' && displayedData ? displayedData : data;
+
+  const numericColumns = selectedData.columns.filter((_, index) => {
+    const sampleValues = selectedData.data.slice(0, 10).map(row => row[index]);
     return sampleValues.some(val => typeof val === 'number' && !isNaN(val));
   });
 
-  const categoricalColumns = data.columns.filter(column => !numericColumns.includes(column));
+  const categoricalColumns = selectedData.columns.filter(column => !numericColumns.includes(column));
 
   // Detect temporal columns based on metadata or column names
-  const temporalColumns = data.columns.filter((column, index) => {
+  const temporalColumns = selectedData.columns.filter((column, index) => {
     // Check metadata if available
-    if (data.meta?.types && data.meta.types[index]) {
-      const type = data.meta.types[index].toLowerCase();
+    if (selectedData.meta?.types && selectedData.meta.types[index]) {
+      const type = selectedData.meta.types[index].toLowerCase();
       return type === 'timestamp' || type === 'date' || type === 'time' || type === 'datetime';
     }
     // Fallback to column name patterns
@@ -76,11 +82,11 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
 
   // Smart time-only column detection utility for charts
   const isTimeOnlyColumn = (columnIndex: number): boolean => {
-    if (!data || !data.data || !data.columns) return false;
+    if (!selectedData || !selectedData.data || !selectedData.columns) return false;
     
-    const columnName = data.columns[columnIndex]?.toLowerCase();
-    const sampleSize = Math.min(20, data.data.length); // Check first 20 rows
-    const sampleData = data.data.slice(0, sampleSize);
+    const columnName = selectedData.columns[columnIndex]?.toLowerCase();
+    const sampleSize = Math.min(20, selectedData.data.length); // Check first 20 rows
+    const sampleData = selectedData.data.slice(0, sampleSize);
     
     let stringCount = 0;
     let timeOnlyPatternCount = 0;
@@ -114,38 +120,72 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
     return hasTimeOnlyName && allValuesAreTimeOnly;
   };
 
-  // Set default columns when modal opens
+  // Handle modal state changes - reset on close, set defaults on open
   useEffect(() => {
-    if (isOpen) {
+    const wasOpen = prevIsOpenRef.current;
+    const isNowOpen = isOpen;
+    
+    // Reset state when closing modal (was open, now closed)
+    if (wasOpen && !isNowOpen) {
+      setChartConfig({
+        type: 'line',
+        xColumn: '',
+        yColumn: '',
+        yColumns: [],
+        title: 'Data Visualization',
+        stackedArea: false
+      });
+      setShowSettings(false);
+      setFilteredTickValues(null);
+    }
+    
+    // Set smart defaults when opening modal (was closed, now open)
+    if (!wasOpen && isNowOpen) {
+      let newConfig: ChartConfig = {
+        type: 'line',
+        xColumn: '',
+        yColumn: '',
+        yColumns: [],
+        title: 'Data Visualization',
+        stackedArea: false
+      };
+
       // Prefer temporal columns for x-axis
       if (temporalColumns.length > 0 && numericColumns.length > 0) {
-        setChartConfig(prev => ({
-          ...prev,
+        const yCol = numericColumns.find(col => !temporalColumns.includes(col)) || numericColumns[0];
+        newConfig = {
+          ...newConfig,
           xColumn: temporalColumns[0],
-          yColumn: numericColumns.find(col => !temporalColumns.includes(col)) || numericColumns[0],
-          yColumns: [numericColumns.find(col => !temporalColumns.includes(col)) || numericColumns[0]]
-        }));
+          yColumn: yCol,
+          yColumns: [yCol]
+        };
       } else if (numericColumns.length >= 2) {
-        setChartConfig(prev => ({
-          ...prev,
+        newConfig = {
+          ...newConfig,
           xColumn: numericColumns[0],
           yColumn: numericColumns[1],
           yColumns: [numericColumns[1]]
-        }));
+        };
       } else if (numericColumns.length === 1 && categoricalColumns.length >= 1) {
-        setChartConfig(prev => ({
-          ...prev,
+        newConfig = {
+          ...newConfig,
           xColumn: categoricalColumns[0],
           yColumn: numericColumns[0],
           yColumns: [numericColumns[0]]
-        }));
+        };
       }
+
+      setChartConfig(newConfig);
+      setShowSettings(false);
     }
-  }, [isOpen, data]);
+    
+    // Update ref for next comparison
+    prevIsOpenRef.current = isOpen;
+  }, [isOpen, selectedData, temporalColumns, numericColumns, categoricalColumns]);
 
   // Simple, reliable label density calculation
   useEffect(() => {
-    if (!isOpen || !data || !data.data || data.data.length === 0) {
+    if (!isOpen || !selectedData || !selectedData.data || selectedData.data.length === 0) {
       setFilteredTickValues(null);
       return;
     }
@@ -157,7 +197,7 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
     
     // Store the target tick count (we'll use this in Plotly config)
     setFilteredTickValues([targetTicks.toString()]);
-  }, [isOpen, data, chartConfig.xColumn, chartConfig.yColumn, chartDimensions.width]);
+  }, [isOpen, selectedData, chartConfig.xColumn, chartConfig.yColumn, chartDimensions.width]);
 
   // Handle ESC key to close modal
   useEffect(() => {
@@ -191,13 +231,13 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
       ];
 
       // Prepare data for plotting
-      const xColumnIndex = data.columns.indexOf(chartConfig.xColumn);
+      const xColumnIndex = selectedData.columns.indexOf(chartConfig.xColumn);
       if (xColumnIndex === -1) return;
 
       // Check if any data exists
       const hasData = chartConfig.yColumns.some(yCol => {
-        const yIdx = data.columns.indexOf(yCol);
-        return yIdx !== -1 && data.data.some(row => row[xColumnIndex] != null && row[yIdx] != null);
+        const yIdx = selectedData.columns.indexOf(yCol);
+        return yIdx !== -1 && selectedData.data.some(row => row[xColumnIndex] != null && row[yIdx] != null);
       });
       if (!hasData) return;
 
@@ -210,7 +250,7 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
         return value instanceof Date;
       };
 
-      const xIsTime = data.data.length > 0 && isTimeData(data.data[0][xColumnIndex]);
+      const xIsTime = selectedData.data.length > 0 && isTimeData(selectedData.data[0][xColumnIndex]);
       
       // Get target tick count from our calculation
       const targetTicks = filteredTickValues && filteredTickValues.length > 0 
@@ -230,9 +270,9 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
         // Get unique X values across all series (sorted)
         const xValueSet = new Set();
         chartConfig.yColumns.forEach(yColumn => {
-          const yColumnIndex = data.columns.indexOf(yColumn);
+          const yColumnIndex = selectedData.columns.indexOf(yColumn);
           if (yColumnIndex !== -1) {
-            data.data.forEach(row => {
+            selectedData.data.forEach(row => {
               if (row[xColumnIndex] != null && row[yColumnIndex] != null) {
                 xValueSet.add(row[xColumnIndex]);
               }
@@ -244,11 +284,11 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
         
         // Align all series to the same X values
         chartConfig.yColumns.forEach(yColumn => {
-          const yColumnIndex = data.columns.indexOf(yColumn);
+          const yColumnIndex = selectedData.columns.indexOf(yColumn);
           if (yColumnIndex === -1) return;
           
           const seriesDataMap = new Map();
-          data.data.forEach(row => {
+          selectedData.data.forEach(row => {
             if (row[xColumnIndex] != null && row[yColumnIndex] != null) {
               seriesDataMap.set(row[xColumnIndex], Number(row[yColumnIndex]) || 0);
             }
@@ -295,10 +335,10 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
       } else {
         // Normal (non-stacked) processing
         chartConfig.yColumns.forEach((yColumn, index) => {
-          const yColumnIndex = data.columns.indexOf(yColumn);
+          const yColumnIndex = selectedData.columns.indexOf(yColumn);
           if (yColumnIndex === -1) return;
           
-          const seriesData = data.data
+          const seriesData = selectedData.data
             .map(row => ({ x: row[xColumnIndex], y: row[yColumnIndex] }))
             .filter(d => d.x != null && d.y != null);
           
@@ -373,11 +413,11 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
               // Check if user selected 4 Y columns (likely OHLC)
               if (chartConfig.yColumns.length === 4) {
                 // Use direct OHLC mapping - assume columns are in order: open, high, low, close
-                const xColumnIndex = data.columns.indexOf(chartConfig.xColumn);
-                const ohlcIndices = chartConfig.yColumns.map(col => data.columns.indexOf(col));
+                const xColumnIndex = selectedData.columns.indexOf(chartConfig.xColumn);
+                const ohlcIndices = chartConfig.yColumns.map(col => selectedData.columns.indexOf(col));
                 
                 if (xColumnIndex !== -1 && ohlcIndices.every(idx => idx !== -1)) {
-                  const candlestickData = data.data
+                  const candlestickData = selectedData.data
                     .map(row => ({
                       x: row[xColumnIndex],
                       open: row[ohlcIndices[0]],
@@ -463,11 +503,11 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
               // Check if user selected 4 Y columns (likely OHLC)
               if (chartConfig.yColumns.length === 4) {
                 // Use direct OHLC mapping - assume columns are in order: open, high, low, close
-                const xColumnIndex = data.columns.indexOf(chartConfig.xColumn);
-                const ohlcIndices = chartConfig.yColumns.map(col => data.columns.indexOf(col));
+                const xColumnIndex = selectedData.columns.indexOf(chartConfig.xColumn);
+                const ohlcIndices = chartConfig.yColumns.map(col => selectedData.columns.indexOf(col));
                 
                 if (xColumnIndex !== -1 && ohlcIndices.every(idx => idx !== -1)) {
-                  const ohlcData = data.data
+                  const ohlcData = selectedData.data
                     .map(row => ({
                       x: row[xColumnIndex],
                       open: row[ohlcIndices[0]],
@@ -550,8 +590,8 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
             // Use our new financial heatmap generator
             try {
               const heatmapData = generateFinancialHeatmap(
-                data.columns,
-                data.data,
+                selectedData.columns,
+                selectedData.data,
                 chartConfig.xColumn,
                 chartConfig.yColumns // Pass all selected Y columns
               );
@@ -723,7 +763,7 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
         chartRef.current.innerHTML = '<div class="p-4 text-center text-destructive">Error creating visualization</div>';
       }
     }
-  }, [chartConfig, data, isOpen, chartDimensions]);
+  }, [chartConfig, selectedData, isOpen, chartDimensions]);
 
   // Regenerate chart when dimensions change
   useEffect(() => {
@@ -879,7 +919,7 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
                   className="w-full px-3 py-2 border border-border rounded-md text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 >
                   <option value="">Select column</option>
-                  {data.columns.map(column => (
+                  {selectedData.columns.map(column => (
                     <option key={column} value={column}>{column}</option>
                   ))}
                 </select>

@@ -31,6 +31,7 @@ interface VirtualDataGridProps {
   enableColumnControls?: boolean;
   isSidebarVisible?: boolean;
   onShowSidebar?: () => void;
+  onDisplayedDataChange?: (displayedData: KdbQueryResult) => void;
 }
 
 export function VirtualDataGrid({ 
@@ -45,7 +46,8 @@ export function VirtualDataGrid({
   hasData = false,
   enableColumnControls = false,
   isSidebarVisible = true,
-  onShowSidebar
+  onShowSidebar,
+  onDisplayedDataChange
 }: VirtualDataGridProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -631,6 +633,35 @@ export function VirtualDataGrid({
 
   // Virtual row model
   const { rows } = table.getRowModel();
+
+  // Extract displayed data for charts
+  React.useEffect(() => {
+    if (!data || !onDisplayedDataChange) return;
+
+    // Ensure table is initialized with data before extracting
+    if (!table.getRowModel().rows.length && data.data.length > 0) return;
+
+    // Get filtered and sorted rows from the table
+    const filteredRows = table.getFilteredRowModel().rows;
+    
+    // Convert table rows back to KdbQueryResult format
+    // Maintain original column order regardless of column visibility/reordering
+    const displayedRowData = filteredRows.map(row => {
+      return data.columns.map((_, colIndex) => {
+        const colId = colIndex.toString();
+        // Use row.original directly to avoid getValue issues
+        return row.original[colId];
+      });
+    });
+
+    const displayedData: KdbQueryResult = {
+      columns: data.columns,
+      data: displayedRowData,
+      meta: data.meta
+    };
+
+    onDisplayedDataChange(displayedData);
+  }, [data, onDisplayedDataChange, sorting, columnFilters, globalFilter, clientPage, clientPageSize, columnVisibility]);
   
   // Row virtualizer
   const rowVirtualizer = useVirtualizer({

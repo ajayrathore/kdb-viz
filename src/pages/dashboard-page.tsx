@@ -4,9 +4,11 @@ import { VirtualDataGrid } from '@/components/virtual-data-grid';
 import { TableMetadataDisplay } from '@/components/table-metadata-display';
 import { QueryExecutorSimple, QueryExecutorRef } from '@/components/query-executor-simple';
 import { ChartModal } from '@/components/chart-modal-plotly';
+import { SettingsModal } from '@/components/settings-modal';
 import { ConnectionInput } from '@/components/connection-input';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { Database } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Database, Settings } from 'lucide-react';
 import { KdbTable, KdbQueryResult, ConnectionStatus } from '@/types/kdb';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 
@@ -48,6 +50,9 @@ export function DashboardPage({
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
   const [browseTables, setBrowseTables] = useState(false);
   const [isDisplayingMetadata, setIsDisplayingMetadata] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [chartDataSource, setChartDataSource] = useState<'full' | 'displayed'>('full');
+  const [displayedData, setDisplayedData] = useState<KdbQueryResult | null>(null);
 
   // Ref for focus management  
   const queryExecutorRef = useRef<QueryExecutorRef>(null);
@@ -173,6 +178,11 @@ export function DashboardPage({
     }, 100);
   }, []);
 
+  // Handle displayed data changes for chart data source
+  const handleDisplayedDataChange = useCallback((newDisplayedData: KdbQueryResult) => {
+    setDisplayedData(newDisplayedData);
+  }, []);
+
   // Load first table by default when connected and browsing tables
   useEffect(() => {
     if (connectionStatus === 'connected' && browseTables && tables.length > 0 && !selectedTable) {
@@ -237,6 +247,14 @@ export function DashboardPage({
           </div>
           
           <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsSettingsModalOpen(true)}
+              title="Settings"
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
             <ThemeToggle />
           </div>
         </div>
@@ -306,6 +324,7 @@ export function DashboardPage({
                     enableColumnControls={true}
                     isSidebarVisible={browseTables && isSidebarVisible}
                     onShowSidebar={browseTables ? toggleSidebar : undefined}
+                    onDisplayedDataChange={handleDisplayedDataChange}
                   />
                 )}
               </div>
@@ -339,6 +358,7 @@ export function DashboardPage({
                 enableColumnControls={true}
                 isSidebarVisible={browseTables && isSidebarVisible}
                 onShowSidebar={browseTables ? toggleSidebar : undefined}
+                onDisplayedDataChange={handleDisplayedDataChange}
               />
             )}
             </div>
@@ -354,8 +374,20 @@ export function DashboardPage({
           isOpen={isChartModalOpen}
           onClose={() => setIsChartModalOpen(false)}
           data={currentData}
+          displayedData={displayedData || undefined}
+          dataSource={chartDataSource}
         />
       )}
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        chartDataSource={chartDataSource}
+        onChartDataSourceChange={setChartDataSource}
+        fullDataRowCount={currentData?.data?.length || 0}
+        displayedDataRowCount={displayedData?.data?.length || 0}
+      />
     </div>
   );
 }
