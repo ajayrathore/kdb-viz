@@ -151,7 +151,6 @@ export const QueryExecutorSimple = forwardRef<QueryExecutorRef, QueryExecutorSim
   const [tabs, setTabs] = useState<QueryTab[]>([initialTab]);
   const [activeTabId, setActiveTabId] = useState<string>(initialTab.id);
   const [error, setError] = useState<string | null>(null);
-  const [currentQueryInfo, setCurrentQueryInfo] = useState<{index: number, total: number, selectedText?: string} | null>(null);
   
   // Execution time tracking
   const [executionStartTime, setExecutionStartTime] = useState<number | null>(null);
@@ -465,70 +464,25 @@ export const QueryExecutorSimple = forwardRef<QueryExecutorRef, QueryExecutorSim
     }
   };
 
-  // Update current query info when cursor moves or text changes
-  const updateCurrentQueryInfo = () => {
-    if (!textareaRef.current || !query.trim()) {
-      setCurrentQueryInfo(null);
-      return;
-    }
-
-    const queries = parseQueries(query);
-    if (queries.length <= 1) {
-      setCurrentQueryInfo(null);
-      return;
-    }
-
-    const { selectionStart, selectionEnd } = textareaRef.current;
-    
-    // If there's a selection, show that info instead
-    if (selectionStart !== selectionEnd) {
-      const selectedText = query.substring(selectionStart, selectionEnd).trim();
-      if (selectedText) {
-        setCurrentQueryInfo({
-          index: 0, // Special case for selection
-          total: queries.length,
-          selectedText: selectedText.length > 30 ? selectedText.substring(0, 30) + '...' : selectedText
-        });
-        return;
-      }
-    }
-
-    // Otherwise show current query at cursor
-    let currentIndex = 0;
-    for (let i = 0; i < queries.length; i++) {
-      if (selectionStart >= queries[i].start && selectionStart <= queries[i].end) {
-        currentIndex = i;
-        break;
-      }
-    }
-
-    setCurrentQueryInfo({
-      index: currentIndex + 1, // 1-based for display
-      total: queries.length
-    });
-  };
-
-  // Handle cursor movement and selection changes
-  const handleCursorChange = () => {
-    updateCurrentQueryInfo();
-  };
 
 
   return (
-    <div className={`query-executor-section px-1 py-0.5 h-full flex flex-col ${isExecuting ? 'query-executor-section-executing' : ''}`}>
+    <div className={`card-finance m-2 p-4 h-[calc(100%-1rem)] flex flex-col ${isExecuting ? 'query-executor-section-executing' : ''}`}>
       {/* Tab Headers */}
-      <div className="flex items-center justify-between mb-0.5">
-        <div className="flex items-center space-x-2">
-          <Code className={`h-4 w-4 text-primary ${isExecuting ? 'animate-spin' : ''}`} />
-          <h3 className={`text-sm font-medium ${isExecuting ? 'query-executor-header-executing' : ''}`}>Query Executor</h3>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center space-x-3">
+          <div className="icon-3d icon-3d-logo p-2 rounded-lg">
+            <Code className={`h-4 w-4 ${isExecuting ? 'animate-spin' : ''}`} />
+          </div>
+          <h3 className={`text-lg font-semibold text-foreground ${isExecuting ? 'query-executor-header-executing' : ''}`}>Query Executor</h3>
           {isExecuting && onCancelQuery && (
             <Button
               variant="destructive"
               size="icon"
               onClick={onCancelQuery}
-              className="h-6 w-6 rounded-full cancel-button-3d"
+              className="h-7 w-7 rounded-full cancel-button-3d"
             >
-              <X className="h-3 w-3" />
+              <X className="h-4 w-4" />
             </Button>
           )}
         </div>
@@ -539,6 +493,7 @@ export const QueryExecutorSimple = forwardRef<QueryExecutorRef, QueryExecutorSim
             size="sm"
             onClick={handleLoadFile}
             title="Load File (Ctrl/Cmd + O)"
+            className="btn-modern"
           >
             <FolderOpen className="h-4 w-4 mr-2" />
             Load
@@ -551,6 +506,7 @@ export const QueryExecutorSimple = forwardRef<QueryExecutorRef, QueryExecutorSim
             title={isFileSystemAccessSupported() 
               ? "Save As - Choose location (Ctrl/Cmd + S)" 
               : "Save As - Download file (Ctrl/Cmd + S)"}
+            className="btn-modern"
           >
             <Download className="h-4 w-4 mr-2" />
             Save As
@@ -559,29 +515,29 @@ export const QueryExecutorSimple = forwardRef<QueryExecutorRef, QueryExecutorSim
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center space-x-1 mb-0.5">
+      <div className="flex items-center space-x-2 mb-3 border-b border-border">
         <div className="flex items-center space-x-1 flex-1 overflow-x-auto">
           {tabs.map((tab) => (
             <div
               key={tab.id}
-              className={`flex items-center space-x-1 px-1.5 py-0 rounded text-sm cursor-pointer group relative min-w-0 ${
+              className={`flex items-center space-x-2 px-3 py-2 rounded-t-lg text-sm cursor-pointer group relative min-w-0 transition-all ${
                 tab.id === activeTabId
-                  ? 'query-tab-active'
-                  : 'query-tab-inactive'
+                  ? 'bg-background border-t border-l border-r border-border -mb-px'
+                  : 'hover:bg-muted/50'
               }`}
               onClick={() => switchToTab(tab.id)}
             >
-              <FileText className="h-3 w-3 flex-shrink-0" />
-              <span className="truncate max-w-24" title={tab.name}>
+              <FileText className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+              <span className="truncate max-w-32 font-medium" title={tab.name}>
                 {tab.name}
               </span>
               {tab.isModified && (
-                <span className="text-primary">•</span>
+                <span className="text-warning text-lg leading-none">•</span>
               )}
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-4 w-4 p-0 opacity-0 group-hover:opacity-100 ml-1"
+                className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 ml-1 hover:bg-destructive/20"
                 onClick={(e) => {
                   e.stopPropagation();
                   closeTab(tab.id);
@@ -594,11 +550,11 @@ export const QueryExecutorSimple = forwardRef<QueryExecutorRef, QueryExecutorSim
         </div>
         
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
           onClick={() => createNewTab()}
           title="New Tab (Ctrl/Cmd + N)"
-          className="flex-shrink-0"
+          className="icon-3d p-1.5 rounded-lg"
         >
           <Plus className="h-4 w-4" />
         </Button>
@@ -614,73 +570,54 @@ export const QueryExecutorSimple = forwardRef<QueryExecutorRef, QueryExecutorSim
         onChange={handleFileSelected}
       />
 
-      <div className="flex-1 flex flex-col space-y-0.5">
-        <div className="flex-1 query-editor-wrapper">
+      <div className="flex-1 flex flex-col space-y-3">
+        <div className="flex-1 query-editor-wrapper relative rounded-lg overflow-hidden">
           <textarea
             ref={textareaRef}
             value={query}
             onChange={(e) => {
               handleQueryChange(e.target.value);
-              setTimeout(updateCurrentQueryInfo, 0); // Update after state change
             }}
             onKeyDown={handleKeyDown}
-            onKeyUp={handleCursorChange}
-            onClick={handleCursorChange}
-            onSelect={handleCursorChange}
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
             onDragOver={handleDragOverEvent}
             onDrop={handleDropEvent}
             placeholder="Enter your q query here... (Ctrl/Cmd + Enter to execute, Ctrl/Cmd + O to load file, Ctrl/Cmd + S to save, drag & drop .q files)"
-            className={`query-editor w-full h-full px-3 py-2 rounded-md overflow-x-auto whitespace-pre focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-mono text-sm text-foreground transition-colors enhanced-scrollbar ${isExecuting ? 'query-editor-executing' : ''}`}
+            className={`query-editor w-full h-full px-4 py-3 rounded-lg bg-background border-2 overflow-x-auto whitespace-pre focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary font-mono text-sm text-foreground transition-all enhanced-scrollbar ${isExecuting ? 'query-editor-executing border-primary/50' : 'border-input hover:border-primary/50'}`}
             disabled={isExecuting || !activeTab}
-            style={{ resize: 'none', minHeight: '80px' }}
+            style={{ resize: 'none', minHeight: '120px' }}
           />
           {isExecuting && (
-            <div className="query-editor-overlay">
+            <div className="query-editor-overlay rounded-lg">
               <div className="query-executing-content">
-                <Loader2 className="h-8 w-8 animate-spin text-white" />
-                <div className="query-executing-text">Executing query...</div>
-                <div className="query-executing-timer">{elapsedTime}</div>
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <div className="query-executing-text text-primary font-semibold">Executing query...</div>
+                <div className="query-executing-timer badge-info">{elapsedTime}</div>
               </div>
             </div>
           )}
         </div>
 
         {error && (
-          <div className="flex items-center space-x-2 text-sm text-destructive bg-destructive/10 p-3 rounded-md">
-            <AlertCircle className="h-4 w-4" />
-            <span>{error}</span>
+          <div className="flex items-center space-x-2 text-sm bg-destructive/10 border border-destructive/20 p-3 rounded-lg card-finance">
+            <AlertCircle className="h-4 w-4 text-destructive" />
+            <span className="text-destructive font-medium">{error}</span>
           </div>
         )}
 
 
         {/* Execution status bar */}
         {isExecuting && executionStartTime && (
-          <div className="flex items-center justify-between text-xs bg-primary/10 p-2 rounded-md border border-primary/20">
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-              <span className="text-primary font-medium">Executing query...</span>
+          <div className="flex items-center justify-between bg-primary/5 p-3 rounded-lg border border-primary/20 card-finance">
+            <div className="flex items-center space-x-3">
+              <div className="pulse-live"></div>
+              <span className="text-primary font-semibold text-sm">Executing query...</span>
             </div>
-            <span className="text-primary font-mono">{elapsedTime}</span>
+            <span className="badge-info font-mono text-xs">{elapsedTime}</span>
           </div>
         )}
 
-        {currentQueryInfo && !isExecuting && (
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <div className="flex items-center space-x-2">
-              {currentQueryInfo.selectedText ? (
-                <span className="text-primary font-medium">
-                  Will execute: "{currentQueryInfo.selectedText}"
-                </span>
-              ) : (
-                <span className="text-primary font-medium">
-                  Query {currentQueryInfo.index} of {currentQueryInfo.total}
-                </span>
-              )}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

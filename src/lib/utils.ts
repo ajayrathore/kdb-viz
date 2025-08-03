@@ -155,6 +155,15 @@ export function parseKdbTemporal(value: any): { timestamp: number; type: 'time' 
       return { timestamp: date.getTime(), type: 'date' };
     }
 
+    // Standard datetime format: "2025-08-02 00:00:00.000"
+    const standardDatetimeMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{1,2}):(\d{2}):(\d{2})(?:\.(\d{3}))?$/);
+    if (standardDatetimeMatch) {
+      const [, year, month, day, hours, minutes, seconds, milliseconds = '0'] = standardDatetimeMatch;
+      const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 
+                           parseInt(hours), parseInt(minutes), parseInt(seconds), parseInt(milliseconds));
+      return { timestamp: date.getTime(), type: 'datetime' };
+    }
+
     // KDB datetime/timestamp: "2023.01.15D09:30:00.123" or ISO format
     const datetimeMatch = value.match(/^(\d{4})[.\-](\d{1,2})[.\-](\d{1,2})[DT](\d{1,2}):(\d{2}):(\d{2})(?:\.(\d{3}))?/);
     if (datetimeMatch) {
@@ -290,8 +299,8 @@ export function createTimeBuckets(timeData: any[], targetBuckets: number = 20): 
         }));
       } else if (timeRange < 7 * 24 * 60 * 60 * 1000) { // Less than 1 week - show date and time
         buckets.push(date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-      } else { // More than 1 week - show date only
-        buckets.push(date.toLocaleDateString());
+      } else { // More than 1 week - show date and time for better granularity
+        buckets.push(date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
       }
     }
   }
@@ -338,7 +347,7 @@ export function createValueBuckets(values: number[], targetBuckets: number = 20)
   return { buckets, getBucketIndex };
 }
 
-// Generate heatmap for financial time series data
+// Generate heatmap for financial time series data (GitHub working version)
 export function generateFinancialHeatmap(
   columns: string[],
   data: any[][],

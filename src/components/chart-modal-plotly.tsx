@@ -37,6 +37,34 @@ interface ChartModalProps {
   dataSource?: 'full' | 'displayed';
 }
 
+// Helper function to resolve CSS variables to actual color values
+function getCSSVariableValue(variable: string): string {
+  const root = document.documentElement;
+  const value = getComputedStyle(root).getPropertyValue(variable).trim();
+  
+  // If it's an HSL value like "217 91% 60%", convert to proper format
+  if (value && !value.startsWith('hsl') && !value.startsWith('rgb') && !value.startsWith('#')) {
+    return `hsl(${value})`;
+  }
+  return value || '#000000'; // Fallback to black if not found
+}
+
+// Get light theme colors for Plotly (removed dark theme)
+function getPlotlyColors() {
+  return {
+    background: '#ffffff',
+    paper: '#ffffff',
+    text: '#1e293b',
+    gridcolor: '#e2e8f0',
+    zerolinecolor: '#cbd5e1',
+    activecolor: getCSSVariableValue('--primary'),
+    hovercolor: getCSSVariableValue('--primary'),
+    border: '#e2e8f0',
+    primary: getCSSVariableValue('--primary')
+  };
+}
+
+
 export function ChartModal({ isOpen, onClose, data, displayedData, dataSource = 'full' }: ChartModalProps) {
   const [chartConfig, setChartConfig] = useState<ChartConfig>({
     type: 'line',
@@ -47,7 +75,7 @@ export function ChartModal({ isOpen, onClose, data, displayedData, dataSource = 
     stackedArea: false
   });
   const [showSettings, setShowSettings] = useState(false);
-  const [chartDimensions, setChartDimensions] = useState({ width: 1200, height: 700 });
+  const [chartDimensions, setChartDimensions] = useState({ width: 1400, height: 400 });
   const [isResizing, setIsResizing] = useState(false);
   const [filteredTickValues, setFilteredTickValues] = useState<string[] | null>(null);
   const chartRef = useRef<HTMLDivElement>(null);
@@ -284,7 +312,7 @@ export function ChartModal({ isOpen, onClose, data, displayedData, dataSource = 
 
     try {
       // Color palette for multiple series
-      const colors = [
+      const seriesColors = [
         '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6',
         '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#84cc16',
         '#06b6d4', '#a855f7', '#facc15', '#22c55e', '#f43f5e'
@@ -557,7 +585,7 @@ export function ChartModal({ isOpen, onClose, data, displayedData, dataSource = 
           
           const xData = allSeriesData[index].map(d => d.x);
           const yData = stackedData.map(point => point[index]);
-          const color = colors[index % colors.length];
+          const color = seriesColors[index % seriesColors.length];
           
           traces.push({
             x: xData,
@@ -587,7 +615,7 @@ export function ChartModal({ isOpen, onClose, data, displayedData, dataSource = 
           
           const xData = seriesData.map(d => d.x);
           const yData = seriesData.map(d => d.y);
-          const color = colors[index % colors.length];
+          const color = seriesColors[index % seriesColors.length];
           
           traces.push({
             x: xData,
@@ -828,7 +856,7 @@ export function ChartModal({ isOpen, onClose, data, displayedData, dataSource = 
             delete trace.line;
             break;
           case 'heatmap':
-            // Use our new financial heatmap generator
+            // Use GitHub working heatmap generator
             try {
               const heatmapData = generateFinancialHeatmap(
                 selectedData.columns,
@@ -939,25 +967,30 @@ export function ChartModal({ isOpen, onClose, data, displayedData, dataSource = 
         }
       });
 
+      // Get theme-aware colors
+      const colors = getPlotlyColors();
+      
       // Layout configuration with proper axis control
       const layout: any = {
-        paper_bgcolor: 'rgba(0,0,0,0)',
-        plot_bgcolor: 'rgba(0,0,0,0)',
-        font: { color: 'hsl(var(--foreground))' },
+        paper_bgcolor: colors.paper,
+        plot_bgcolor: colors.background,
+        font: { color: colors.text },
         margin: { l: 80, r: 50, t: 50, b: 120 },
         width: chartDimensions.width,
         height: chartDimensions.height,
         xaxis: {
           title: chartConfig.xColumn,
           tickangle: -45,
-          color: 'hsl(var(--foreground))',
-          showgrid: false,
+          color: colors.text,
+          showgrid: true,
+          gridcolor: colors.gridcolor,
+          zerolinecolor: colors.zerolinecolor,
           nticks: targetTicks,  // THIS IS THE KEY - direct tick control!
           automargin: true
         },
         yaxis: {
           title: chartConfig.yColumns.length > 1 ? 'Values' : chartConfig.yColumns[0] || '',
-          color: 'hsl(var(--foreground))',
+          color: colors.text,
           showgrid: false,
           automargin: true
         },
@@ -969,7 +1002,7 @@ export function ChartModal({ isOpen, onClose, data, displayedData, dataSource = 
           xanchor: 'left',
           yanchor: 'top',
           bgcolor: 'rgba(0,0,0,0)',
-          bordercolor: 'hsl(var(--border))',
+          bordercolor: colors.border,
           borderwidth: 1
         },
         barmode: chartConfig.type === 'bar' ? 'group' : undefined
@@ -1176,7 +1209,7 @@ export function ChartModal({ isOpen, onClose, data, displayedData, dataSource = 
 
         {/* Chart Controls */}
         {showSettings && (
-          <div className="p-6 border-b border-border bg-muted/20">
+          <div className="p-6 border-b border-border bg-muted/30">
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
               {/* Chart Type */}
               <div>
@@ -1220,7 +1253,7 @@ export function ChartModal({ isOpen, onClose, data, displayedData, dataSource = 
                 <select
                   value={chartConfig.xColumn}
                   onChange={(e) => setChartConfig(prev => ({ ...prev, xColumn: e.target.value }))}
-                  className="w-full px-3 py-2 border border-border rounded-md text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  className="w-full px-3 py-2 border border-border rounded-md text-sm bg-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 >
                   <option value="">Select column</option>
                   {selectedData.columns.map(column => (
@@ -1342,7 +1375,7 @@ export function ChartModal({ isOpen, onClose, data, displayedData, dataSource = 
                 style={{ 
                   width: chartDimensions.width, 
                   height: chartDimensions.height,
-                  border: isResizing ? '2px dashed hsl(var(--primary))' : '1px solid hsl(var(--border))',
+                  border: isResizing ? `2px dashed ${getCSSVariableValue('--primary')}` : `1px solid ${getPlotlyColors().border}`,
                   borderRadius: '6px',
                   position: 'relative'
                 }}

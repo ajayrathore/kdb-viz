@@ -537,24 +537,44 @@ export function VirtualDataGrid({
         enableResizing: true,
         cell: ({ getValue }: any) => {
           const value = getValue();
-          if (value === null || value === undefined) return '-';
+          if (value === null || value === undefined) return <span className="text-muted-foreground">-</span>;
           if (typeof value === 'number') {
-            return value.toLocaleString();
+            // Format numbers with special styling for financial data
+            const formatted = value.toLocaleString();
+            const columnName = data.columns[index]?.toLowerCase() || '';
+            
+            // Check if it's a financial column
+            if (columnName.includes('price') || columnName.includes('size') || 
+                columnName.includes('volume') || columnName.includes('amount') ||
+                columnName.includes('value') || columnName.includes('cost')) {
+              // Add special formatting for positive/negative values
+              if (value < 0) {
+                return <span className="value-negative">{formatted}</span>;
+              } else if (value > 0 && (columnName.includes('change') || columnName.includes('pnl'))) {
+                return <span className="value-positive">+{formatted}</span>;
+              }
+              return <span className="financial-amount">{formatted}</span>;
+            }
+            return formatted;
           }
           if (typeof value === 'string') {
             // Smart timestamp handling - only strip date for confirmed time-only columns
             if (value.startsWith('2000-01-01T') && value.length >= 23 && isTimeOnlyColumn(index)) {
               // Extract just the time portion HH:MM:SS.mmm for confirmed time-only columns
-              return value.substring(11, 23);
+              return <span className="text-sm text-foreground">{value.substring(11, 23)}</span>;
             }
             // For actual timestamps, preserve full datetime display
             if (value.startsWith('2000-01-01T') || value.match(/^\d{4}-\d{2}-\d{2}T/)) {
               // Format timestamp for better readability: "2024-01-15 14:30:25.123"
-              return value.replace('T', ' ').replace('Z', '');
+              return <span className="text-sm text-foreground">{value.replace('T', ' ').replace('Z', '')}</span>;
+            }
+            // Check if it's a symbol/ticker
+            if (columnName.includes('sym') || columnName.includes('ticker') || columnName.includes('symbol')) {
+              return <span className="font-semibold text-primary">{value}</span>;
             }
             if (value.length > 50) {
               return (
-                <span title={value}>
+                <span title={value} className="truncate">
                   {value.substring(0, 50) + '...'}
                 </span>
               );
@@ -1127,7 +1147,9 @@ export function VirtualDataGrid({
               return (
                 <tr
                   key={row.id}
-                  className={`data-table-row transition-colors ${row.getIsSelected() ? 'bg-primary/10' : ''}`}
+                  className={`data-table-row transition-colors ${
+                    row.getIsSelected() ? 'bg-primary/10' : virtualRow.index % 2 === 0 ? '' : 'bg-muted/30'
+                  } hover:bg-primary/5`}
                   style={{ height: `${virtualRow.size}px` }}
                 >
                   {row.getVisibleCells().map((cell) => (

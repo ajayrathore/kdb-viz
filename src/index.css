@@ -4,104 +4,99 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222.2 84% 4.9%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96%;
-    --accent-foreground: 222.2 84% 4.9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
-    --radius: 0.5rem;
-    
-    /* Table colors for light mode */
-    --table-header: 220 20% 92%;       /* Light gray with blue tint for headers */
-    --table-row-even: 0 0% 98%;        /* Very light gray for alternating rows */
-    --table-row-hover: 220 20% 96%;    /* Subtle hover state */
-    --table-border: 220 13% 85%;       /* Soft border color */
-  }
-
-  .dark {
-    /* Base colors */
-    --background: 222.2 84% 4.9%;
+    /* Modern Finance Dark Theme - Default theme */
+    --background: 222 47% 11%;           /* Rich dark blue background */
     --foreground: 210 40% 98%;
     
-    /* Enhanced card system with hierarchy */
-    --card: 217.2 32.6% 12%;          /* Slightly lighter for main cards */
+    /* Enhanced card system with better contrast */
+    --card: 217 33% 17%;                 /* Slightly blue-tinted cards */
     --card-foreground: 210 40% 98%;
-    --card-header: 217.2 32.6% 15%;   /* Header sections */
-    --card-content: 217.2 32.6% 10%;  /* Content areas */
+    --card-header: 217 33% 20%;          /* Lighter headers */
+    --card-content: 217 33% 15%;         /* Darker content areas */
     
     /* Popover and modal system */
-    --popover: 217.2 32.6% 14%;
+    --popover: 217 33% 19%;
     --popover-foreground: 210 40% 98%;
     
-    /* Enhanced primary colors for financial theme */
-    --primary: 142 70% 45%;            /* Financial green for success/positive */
-    --primary-foreground: 210 40% 98%;
-    --primary-muted: 142 30% 25%;      /* Muted primary for backgrounds */
+    /* Primary - Bright blue */
+    --primary: 217 91% 60%;              /* Bright professional blue */
+    --primary-foreground: 222 47% 11%;
+    --primary-hover: 217 91% 65%;        /* Lighter on hover in dark */
+    --primary-muted: 217 30% 25%;
     
-    /* Secondary colors for neutral actions */
-    --secondary: 217.2 32.6% 20%;      /* Lighter secondary for better contrast */
+    /* Secondary - Better contrast */
+    --secondary: 217 30% 25%;            /* Blue-tinted gray */
     --secondary-foreground: 210 40% 98%;
     
-    /* Muted colors for less important elements */
-    --muted: 217.2 32.6% 18%;          /* Slightly lighter for better hierarchy */
-    --muted-foreground: 215 20.2% 65.1%;
+    /* Muted - Improved visibility */
+    --muted: 217 30% 22%;
+    --muted-foreground: 215 20% 65%;
     
-    /* Accent colors for interactive elements */
-    --accent: 217.2 45% 25%;           /* More saturated accent */
-    --accent-foreground: 210 40% 98%;
-    --accent-hover: 217.2 45% 30%;     /* Hover state */
+    /* Accent - Vibrant purple */
+    --accent: 262 83% 58%;               /* Modern purple accent */
+    --accent-foreground: 0 0% 100%;
+    --accent-hover: 262 83% 63%;
     
-    /* Enhanced destructive/warning colors */
-    --destructive: 0 65% 45%;          /* Financial red for negative/danger */
-    --destructive-foreground: 210 40% 98%;
-    --warning: 38 85% 50%;             /* Financial amber for warnings */
-    --warning-foreground: 222.2 84% 4.9%;
+    /* Status colors - Vibrant */
+    --destructive: 0 72% 51%;            /* Bright red */
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 71% 45%;              /* Bright green */
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;               /* Bright amber */
+    --warning-foreground: 222 47% 11%;
+    --info: 199 89% 48%;                 /* Bright sky blue */
+    --info-foreground: 0 0% 100%;
     
     /* Border and input system */
-    --border: 217.2 32.6% 22%;         /* Lighter borders for better definition */
-    --border-strong: 217.2 32.6% 35%; /* Strong borders for emphasis */
-    --input: 217.2 32.6% 16%;          /* Input backgrounds */
-    --input-border: 217.2 32.6% 25%;   /* Input borders */
+    --border: 217 30% 25%;               /* Blue-tinted borders */
+    --border-strong: 217 30% 35%;
+    --input: 217 33% 19%;                /* Slightly lighter inputs */
+    --input-border: 217 30% 30%;
     
     /* Focus and selection */
-    --ring: 142 70% 45%;               /* Match primary for focus rings */
+    --ring: 217 91% 60%;                 /* Bright blue ring */
+    
+    /* Radius */
+    --radius: 0.75rem;                   /* Slightly larger radius for modern look */
     
     /* Financial data table colors */
-    --table-header: 217.2 40% 18%;     /* Table header background - darker for more prominence */
-    --table-row-even: 217.2 32.6% 8%;  /* Alternating row color */
-    --table-row-hover: 217.2 45% 15%;  /* Row hover state */
-    --table-border: 217.2 32.6% 25%;   /* Table borders */
+    --table-header: 217 33% 22%;         /* Blue-tinted headers */
+    --table-row-even: 217 33% 13%;       /* Subtle alternating */
+    --table-row-hover: 217 91% 20%;      /* Blue hover with transparency */
+    --table-border: 217 30% 25%;
+    
+    /* Chart colors - Vibrant palette */
+    --chart-1: 217 91% 60%;              /* Primary blue */
+    --chart-2: 142 71% 45%;              /* Success green */
+    --chart-3: 262 83% 58%;              /* Accent purple */
+    --chart-4: 38 92% 50%;               /* Warning amber */
+    --chart-5: 0 72% 51%;                /* Destructive red */
+    --chart-6: 199 89% 48%;              /* Info sky */
+    --chart-7: 334 86% 67%;              /* Pink */
+    --chart-8: 47 80% 52%;               /* Yellow */
     
     /* Status indicator colors */
-    --status-connected: 142 70% 45%;   /* Green for connected */
-    --status-connecting: 38 85% 50%;   /* Amber for connecting */
-    --status-error: 0 65% 45%;         /* Red for errors */
-    --status-inactive: 217.2 20% 35%;  /* Gray for inactive */
+    --status-connected: 142 71% 45%;
+    --status-connecting: 38 92% 50%;
+    --status-error: 0 72% 51%;
+    --status-inactive: 217 20% 45%;
     
     /* Query executor specific colors */
-    --query-bg: 217.2 32.6% 8%;        /* Query editor background */
-    --query-border: 217.2 32.6% 20%;   /* Query editor border */
-    --query-tab-active: 217.2 32.6% 16%; /* Active tab */
-    --query-tab-inactive: 217.2 32.6% 12%; /* Inactive tabs */
+    --query-bg: 217 33% 13%;             /* Darker query editor */
+    --query-border: 217 30% 25%;
+    --query-tab-active: 217 33% 20%;
+    --query-tab-inactive: 217 33% 16%;
     
     /* Sidebar and navigation */
-    --sidebar-bg: 217.2 32.6% 10%;     /* Sidebar background */
-    --sidebar-item-hover: 217.2 45% 18%; /* Sidebar item hover */
-    --nav-bg: 217.2 32.6% 14%;         /* Navigation background */
+    --sidebar-bg: 217 33% 15%;
+    --sidebar-item-hover: 217 91% 20%;
+    --nav-bg: 217 33% 18%;
+    
+    /* Shadows for depth in dark mode */
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.2);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.3);
+    --shadow-lg: 0 10px 15px rgba(0,0,0,0.4);
+    --shadow-xl: 0 20px 25px rgba(0,0,0,0.5);
   }
 }
 
@@ -338,52 +333,52 @@
   
   /* Special effects for specific toolbar icons */
   .icon-3d-chart {
-    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%);
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 50%, hsl(var(--chart-7)) 100%);
     box-shadow: 
-      0 4px 6px -1px rgba(59, 130, 246, 0.4),
-      0 2px 4px -1px rgba(139, 92, 246, 0.3),
+      0 4px 6px -1px hsl(var(--primary) / 0.4),
+      0 2px 4px -1px hsl(var(--accent) / 0.3),
       inset 0 2px 4px 0 rgba(255, 255, 255, 0.2);
   }
   
   .icon-3d-chart:hover {
     transform: translateY(-2px) scale(1.05);
     box-shadow: 
-      0 8px 10px -2px rgba(59, 130, 246, 0.5),
-      0 4px 6px -2px rgba(139, 92, 246, 0.4),
+      0 8px 10px -2px hsl(var(--primary) / 0.5),
+      0 4px 6px -2px hsl(var(--accent) / 0.4),
       inset 0 2px 4px 0 rgba(255, 255, 255, 0.3);
     filter: brightness(1.1);
   }
   
   .icon-3d-export {
-    background: linear-gradient(135deg, #10b981 0%, #14b8a6 50%, #06b6d4 100%);
+    background: linear-gradient(135deg, hsl(var(--success)) 0%, hsl(var(--chart-2)) 50%, hsl(var(--info)) 100%);
     box-shadow: 
-      0 4px 6px -1px rgba(16, 185, 129, 0.4),
-      0 2px 4px -1px rgba(20, 184, 166, 0.3),
+      0 4px 6px -1px hsl(var(--success) / 0.4),
+      0 2px 4px -1px hsl(var(--info) / 0.3),
       inset 0 2px 4px 0 rgba(255, 255, 255, 0.2);
   }
   
   .icon-3d-export:hover {
     transform: translateY(-2px) scale(1.05);
     box-shadow: 
-      0 8px 10px -2px rgba(16, 185, 129, 0.5),
-      0 4px 6px -2px rgba(20, 184, 166, 0.4),
+      0 8px 10px -2px hsl(var(--success) / 0.5),
+      0 4px 6px -2px hsl(var(--info) / 0.4),
       inset 0 2px 4px 0 rgba(255, 255, 255, 0.3);
     filter: brightness(1.1);
   }
   
   .icon-3d-settings {
-    background: linear-gradient(135deg, #f59e0b 0%, #ef4444 50%, #dc2626 100%);
+    background: linear-gradient(135deg, hsl(var(--warning)) 0%, hsl(var(--destructive)) 50%, hsl(var(--chart-5)) 100%);
     box-shadow: 
-      0 4px 6px -1px rgba(245, 158, 11, 0.4),
-      0 2px 4px -1px rgba(239, 68, 68, 0.3),
+      0 4px 6px -1px hsl(var(--warning) / 0.4),
+      0 2px 4px -1px hsl(var(--destructive) / 0.3),
       inset 0 2px 4px 0 rgba(255, 255, 255, 0.2);
   }
   
   .icon-3d-settings:hover {
     transform: translateY(-2px) scale(1.05);
     box-shadow: 
-      0 8px 10px -2px rgba(245, 158, 11, 0.5),
-      0 4px 6px -2px rgba(239, 68, 68, 0.4),
+      0 8px 10px -2px hsl(var(--warning) / 0.5),
+      0 4px 6px -2px hsl(var(--destructive) / 0.4),
       inset 0 2px 4px 0 rgba(255, 255, 255, 0.3);
     filter: brightness(1.1);
   }
@@ -527,10 +522,10 @@
   
   /* Logo icon for header */
   .icon-3d-logo {
-    background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 33%, #6366f1 66%, #8b5cf6 100%);
+    background: linear-gradient(135deg, hsl(var(--info)) 0%, hsl(var(--primary)) 33%, hsl(var(--accent)) 66%, hsl(var(--chart-3)) 100%);
     box-shadow: 
-      0 4px 6px -1px rgba(14, 165, 233, 0.4),
-      0 2px 4px -1px rgba(59, 130, 246, 0.3),
+      0 4px 6px -1px hsl(var(--info) / 0.4),
+      0 2px 4px -1px hsl(var(--primary) / 0.3),
       inset 0 2px 4px 0 rgba(255, 255, 255, 0.2);
     display: inline-flex;
     align-items: center;
@@ -540,8 +535,8 @@
   .icon-3d-logo:hover {
     transform: translateY(-1px) scale(1.05) rotate(5deg);
     box-shadow: 
-      0 6px 8px -2px rgba(14, 165, 233, 0.5),
-      0 4px 6px -2px rgba(59, 130, 246, 0.4),
+      0 6px 8px -2px hsl(var(--info) / 0.5),
+      0 4px 6px -2px hsl(var(--primary) / 0.4),
       inset 0 2px 4px 0 rgba(255, 255, 255, 0.3);
     filter: brightness(1.15);
   }
@@ -558,7 +553,10 @@
   /* Header and navigation styling */
   .app-header {
     background: hsl(var(--nav-bg));
-    border-bottom: 1px solid hsl(var(--border-strong));
+    border-bottom: 1px solid hsl(var(--border));
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    z-index: 10;
   }
   
   /* Query executor section styling */
@@ -678,64 +676,68 @@
   }
   
   .data-table-header {
-    background: linear-gradient(
-      to bottom,
-      hsl(var(--table-header) / 0.95),
-      hsl(var(--table-header))
-    );
-    border-bottom: 4px solid hsl(var(--primary) / 0.3);
-    box-shadow: 
-      0 2px 4px hsl(var(--background) / 0.2),
-      0 4px 8px hsl(var(--background) / 0.1),
-      inset 0 -1px 0 hsl(var(--foreground) / 0.1);
+    background: hsl(var(--card-header));
+    border-bottom: 2px solid hsl(var(--border-strong));
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  }
+  
+  .dark .data-table-header {
+    background: hsl(var(--card-header));
+    border-bottom: 2px solid hsl(var(--border-strong));
   }
   
   /* Enhanced header styling for prominence */
   .data-table-header th {
-    height: 28px !important;
-    min-height: 28px !important;
-    max-height: 28px !important;
-    line-height: 1 !important;
-    padding: 2px 8px !important;
+    height: 36px !important;
+    min-height: 36px !important;
+    max-height: 36px !important;
+    line-height: 1.4 !important;
+    padding: 6px 12px !important;
     vertical-align: middle !important;
-    color: hsl(60 100% 50%) !important;
-    font-weight: 800 !important;
-    font-size: 0.875rem !important;
-    letter-spacing: 0.025em !important;
+    color: hsl(var(--foreground)) !important;
+    font-weight: 700 !important;
+    font-size: 0.8125rem !important;
+    letter-spacing: 0.05em !important;
+    background: transparent !important;
+    border-right: 1px solid hsl(var(--border)) !important;
+  }
+  
+  .data-table-header th:last-child {
+    border-right: none !important;
   }
 
   /* Ultra-high specificity CSS to override TailwindCSS inline classes */
   .data-table-header th.text-foreground {
-    color: hsl(60 100% 50%) !important;
+    color: hsl(var(--foreground)) !important;
   }
   
   .data-table-header th.font-semibold {
-    font-weight: 800 !important;
+    font-weight: 700 !important;
   }
   
   .data-table-header th.text-sm {
-    font-size: 0.875rem !important;
+    font-size: 0.8125rem !important;
   }
   
   /* Additional specificity targeting the exact element structure */
   thead.data-table-header th.data-table-cell.text-foreground {
-    color: hsl(60 100% 50%) !important;
-    font-weight: 800 !important;
-    font-size: 0.875rem !important;
-    letter-spacing: 0.025em !important;
+    color: hsl(var(--foreground)) !important;
+    font-weight: 700 !important;
+    font-size: 0.8125rem !important;
+    letter-spacing: 0.05em !important;
   }
   
   /* Backup attribute selectors for maximum specificity */
   th[class*="text-foreground"].data-table-cell {
-    color: hsl(60 100% 50%) !important;
+    color: hsl(var(--foreground)) !important;
   }
   
   th[class*="font-semibold"].data-table-cell {
-    font-weight: 800 !important;
+    font-weight: 700 !important;
   }
   
   th[class*="text-sm"].data-table-cell {
-    font-size: 0.875rem !important;
+    font-size: 0.8125rem !important;
   }
   
   /* Target all header content elements */
@@ -785,7 +787,7 @@
   
   /* Compact resize handle */
   .data-table-header th .cursor-col-resize {
-    height: 28px !important;
+    height: 36px !important;
   }
   
   /* Enhanced hover effects for sortable columns */
@@ -794,15 +796,11 @@
   }
   
   .data-table-header th .cursor-pointer:hover {
-    color: hsl(var(--primary)) !important;
-    background: hsl(var(--primary) / 0.08);
-    padding-left: 10px !important;
-    padding-right: 6px !important;
+    background: hsl(var(--primary) / 0.05);
   }
   
   .data-table-header th .cursor-pointer:hover span {
-    color: hsl(45 100% 55%) !important;
-    text-shadow: 0 0 8px hsl(60 100% 50% / 0.3);
+    color: hsl(var(--primary)) !important;
   }
   
   /* Sort icon animation */
@@ -976,16 +974,18 @@
 
   /* Row number column styling */
   .row-number-header {
-    background: hsl(var(--table-header));
+    background: transparent;
     text-align: center !important;
-    font-weight: 600;
-    border-right: none !important; 
-    height: 28px !important; /* Match new ultra-compact header height */
-    min-height: 28px !important;
-    max-height: 28px !important;
-    line-height: 1 !important;
-    padding: 2px 4px !important;
-    font-size: 0.8rem !important;
+    font-weight: 700;
+    border-right: 1px solid hsl(var(--border)) !important; 
+    height: 36px !important; /* Match new header height */
+    min-height: 36px !important;
+    max-height: 36px !important;
+    line-height: 1.4 !important;
+    padding: 6px 8px !important;
+    font-size: 0.75rem !important;
+    color: hsl(var(--foreground)) !important;
+    letter-spacing: 0.05em !important;
   }
 
   /* Enhanced Drag & Drop Styling */
@@ -1110,6 +1110,191 @@
   /* Remove right border from td containing row number cells */
   td:has(.row-number-cell) {
     border-right: none !important;
+  }
+  
+  /* ========================================
+     MODERN FINANCE UI UTILITIES
+     ======================================== */
+  
+  /* Enhanced card styles with shadows */
+  .card-finance {
+    @apply bg-card rounded-xl border border-border;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.2s ease;
+  }
+  
+  .card-finance:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+  }
+  
+  /* Gradient backgrounds for key elements */
+  .gradient-primary {
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-hover)));
+  }
+  
+  .gradient-success {
+    background: linear-gradient(135deg, hsl(var(--success)), hsl(var(--success) / 0.8));
+  }
+  
+  .gradient-accent {
+    background: linear-gradient(135deg, hsl(var(--accent)), hsl(var(--accent-hover)));
+  }
+  
+  /* Text gradients for headings */
+  .text-gradient-primary {
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  /* Modern button styles */
+  .btn-modern {
+    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200;
+    box-shadow: var(--shadow-sm);
+  }
+  
+  .btn-modern:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+  }
+  
+  .btn-modern:active {
+    transform: translateY(0);
+    box-shadow: none;
+  }
+  
+  /* Status badges */
+  .badge-status {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  
+  .badge-success {
+    @apply badge-status;
+    background: hsl(var(--success) / 0.1);
+    color: hsl(var(--success));
+    border: 1px solid hsl(var(--success) / 0.2);
+  }
+  
+  .badge-error {
+    @apply badge-status;
+    background: hsl(var(--destructive) / 0.1);
+    color: hsl(var(--destructive));
+    border: 1px solid hsl(var(--destructive) / 0.2);
+  }
+  
+  .badge-warning {
+    @apply badge-status;
+    background: hsl(var(--warning) / 0.1);
+    color: hsl(var(--warning));
+    border: 1px solid hsl(var(--warning) / 0.2);
+  }
+  
+  .badge-info {
+    @apply badge-status;
+    background: hsl(var(--info) / 0.1);
+    color: hsl(var(--info));
+    border: 1px solid hsl(var(--info) / 0.2);
+  }
+  
+  /* Financial value formatting */
+  .value-positive {
+    @apply text-green-600 dark:text-green-400 font-semibold;
+  }
+  
+  .value-negative {
+    @apply text-red-600 dark:text-red-400 font-semibold;
+  }
+  
+  .value-change::before {
+    content: '';
+    display: inline-block;
+    width: 0;
+    height: 0;
+    margin-right: 4px;
+    border-style: solid;
+  }
+  
+  .value-change.positive::before {
+    border-width: 0 4px 6px 4px;
+    border-color: transparent transparent currentColor transparent;
+  }
+  
+  .value-change.negative::before {
+    border-width: 6px 4px 0 4px;
+    border-color: currentColor transparent transparent transparent;
+  }
+  
+  /* Animated gradients for loading states */
+  .gradient-loading {
+    background: linear-gradient(90deg, 
+      hsl(var(--muted)) 0%, 
+      hsl(var(--muted-foreground) / 0.1) 50%, 
+      hsl(var(--muted)) 100%
+    );
+    background-size: 200% 100%;
+    animation: gradient-shift 1.5s ease-in-out infinite;
+  }
+  
+  @keyframes gradient-shift {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  
+  /* Glassmorphism effect */
+  .glass-effect {
+    background: hsl(var(--card) / 0.8);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid hsl(var(--border) / 0.5);
+  }
+  
+  /* Neon glow effects for important elements */
+  .glow-primary {
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.3);
+  }
+  
+  .glow-success {
+    box-shadow: 0 0 20px hsl(var(--success) / 0.3);
+  }
+  
+  .glow-accent {
+    box-shadow: 0 0 20px hsl(var(--accent) / 0.3);
+  }
+  
+  /* Smooth transitions for interactive elements */
+  .transition-smooth {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  /* Pulse animation for live data */
+  .pulse-live {
+    position: relative;
+  }
+  
+  .pulse-live::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: -12px;
+    transform: translateY(-50%);
+    width: 6px;
+    height: 6px;
+    background: hsl(var(--success));
+    border-radius: 50%;
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+  
+  @keyframes pulse-dot {
+    0%, 100% {
+      opacity: 1;
+      transform: translateY(-50%) scale(1);
+    }
+    50% {
+      opacity: 0.6;
+      transform: translateY(-50%) scale(1.5);
+    }
   }
 }
 

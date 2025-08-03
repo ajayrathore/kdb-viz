@@ -6,7 +6,7 @@ import { QueryExecutorSimple, QueryExecutorRef } from '@/components/query-execut
 import { ChartModal } from '@/components/chart-modal-plotly';
 import { SettingsModal } from '@/components/settings-modal';
 import { ConnectionInput } from '@/components/connection-input';
-import { ThemeToggle } from '@/components/theme-toggle';
+import { StatusBar } from '@/components/status-bar';
 import { Button } from '@/components/ui/button';
 import { Database, Settings } from 'lucide-react';
 import { KdbTable, KdbQueryResult, ConnectionStatus } from '@/types/kdb';
@@ -53,6 +53,7 @@ export function DashboardPage({
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [chartDataSource, setChartDataSource] = useState<'full' | 'displayed'>('full');
   const [displayedData, setDisplayedData] = useState<KdbQueryResult | null>(null);
+  const [lastQueryTime, setLastQueryTime] = useState<number | undefined>(undefined);
 
   // Ref for focus management  
   const queryExecutorRef = useRef<QueryExecutorRef>(null);
@@ -159,8 +160,11 @@ export function DashboardPage({
   const handleExecuteQuery = async (query: string): Promise<KdbQueryResult> => {
     setIsExecuting(true);
     setIsDisplayingMetadata(false);
+    const startTime = Date.now();
     try {
       const result = await executeQuery(query);
+      const endTime = Date.now();
+      setLastQueryTime(endTime - startTime);
       setCurrentData(result);
       setSelectedTable(null); // Clear table selection when executing custom query
       setLastExecutedQuery(query.trim());
@@ -255,7 +259,6 @@ export function DashboardPage({
             >
               <Settings className="h-4 w-4" />
             </Button>
-            <ThemeToggle />
           </div>
         </div>
       </header>
@@ -388,6 +391,16 @@ export function DashboardPage({
         fullDataRowCount={currentData?.data?.length || 0}
         displayedDataRowCount={displayedData?.data?.length || 0}
       />
+      
+      {/* Status Bar - Always visible at bottom */}
+      {currentData && (
+        <StatusBar
+          data={currentData}
+          isLoading={isLoading}
+          queryTime={lastQueryTime}
+          connectionStatus={connectionStatus}
+        />
+      )}
     </div>
   );
 }
