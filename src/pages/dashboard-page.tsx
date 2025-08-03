@@ -62,8 +62,9 @@ export function DashboardPage({
         toggleSidebar();
       }
       
-      // Ctrl/Cmd + C: Open chart modal (when data is available and not editing text)
-      if (isCtrlCmd && event.key === 'c' && currentData && currentData.data.length > 0) {
+      // Press 'c': Open chart modal (when data is available and not editing text)
+      // Explicitly exclude Ctrl/Cmd+C to prevent conflicts with copy
+      if (event.key === 'c' && !event.ctrlKey && !event.metaKey && currentData && currentData.data.length > 0) {
         // Check if user is currently focused in a text editing context
         const activeElement = document.activeElement;
         const isEditingText = activeElement && (
