@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Table, Search, Database, Hash, PanelLeftClose } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { KdbTable } from '@/types/kdb';
-import { formatNumber } from '@/lib/utils';
+import { formatNumber, toStringValue } from '@/lib/utils';
 
 interface TableSidebarProps {
   tables: KdbTable[];
@@ -15,8 +15,8 @@ export function TableSidebar({ tables, selectedTable, onTableSelect, onToggleSid
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredTables = tables.filter(table =>
-    table.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    table.columns.some(col => col.toLowerCase().includes(searchTerm.toLowerCase()))
+    toStringValue(table.name).toLowerCase().includes(searchTerm.toLowerCase()) ||
+    table.columns.some(col => toStringValue(col).toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (

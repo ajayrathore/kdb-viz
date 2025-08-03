@@ -29,6 +29,24 @@ export function isValidPort(port: number): boolean {
   return port > 0 && port <= 65535;
 }
 
+// Safely convert KDB+ symbol objects to strings
+export function toStringValue(value: any): string {
+  if (value == null) return '';
+  
+  // Handle KDB+ symbol objects (from node-q)
+  if (typeof value === 'object' && value.constructor && value.constructor.name === 'Symbol') {
+    return value.toString();
+  }
+  
+  // Handle regular strings
+  if (typeof value === 'string') {
+    return value;
+  }
+  
+  // Convert other types to string
+  return String(value);
+}
+
 // Financial data detection and heatmap utilities
 export interface HeatmapData {
   x: (string | number)[];
@@ -58,7 +76,7 @@ export function detectFinancialDataType(columns: string[], data: any[][]): {
 
   // Detect temporal columns
   const timeColumns = columns.filter((column, index) => {
-    const lowerColumn = column.toLowerCase();
+    const lowerColumn = toStringValue(column).toLowerCase();
     const isTimeColumn = lowerColumn.includes('time') || 
                         lowerColumn.includes('date') || 
                         lowerColumn.includes('timestamp') ||
@@ -81,7 +99,7 @@ export function detectFinancialDataType(columns: string[], data: any[][]): {
 
   // Detect volume columns
   const volumeColumns = columns.filter(column => {
-    const lowerColumn = column.toLowerCase();
+    const lowerColumn = toStringValue(column).toLowerCase();
     return lowerColumn.includes('volume') || 
            lowerColumn.includes('vol') || 
            lowerColumn.includes('size') ||
@@ -90,7 +108,7 @@ export function detectFinancialDataType(columns: string[], data: any[][]): {
 
   // Detect price columns
   const priceColumns = columns.filter(column => {
-    const lowerColumn = column.toLowerCase();
+    const lowerColumn = toStringValue(column).toLowerCase();
     return lowerColumn.includes('price') || 
            lowerColumn.includes('close') || 
            lowerColumn.includes('open') ||
@@ -101,7 +119,7 @@ export function detectFinancialDataType(columns: string[], data: any[][]): {
 
   // Check for OHLC pattern
   const ohlcColumns = ['open', 'high', 'low', 'close'].filter(ohlcName => 
-    columns.some(col => col.toLowerCase().includes(ohlcName))
+    columns.some(col => toStringValue(col).toLowerCase().includes(ohlcName))
   );
 
   if (ohlcColumns.length === 4) {
@@ -109,7 +127,7 @@ export function detectFinancialDataType(columns: string[], data: any[][]): {
       type: 'ohlc', 
       timeColumn: timeColumns[0],
       priceColumns: columns.filter(col => 
-        ['open', 'high', 'low', 'close'].some(ohlc => col.toLowerCase().includes(ohlc))
+        ['open', 'high', 'low', 'close'].some(ohlc => toStringValue(col).toLowerCase().includes(ohlc))
       )
     };
   }
@@ -605,8 +623,8 @@ export function generateFinancialHeatmap(
       x: timeBucketLabels,
       y: valueBucketLabels,
       z: normalizedMatrix,
-      colorscale: firstColumnName.toLowerCase().includes('price') ? 'RdYlGn' : 
-                 firstColumnName.toLowerCase().includes('vol') ? 'Hot' : 'Viridis',
+      colorscale: toStringValue(firstColumnName).toLowerCase().includes('price') ? 'RdYlGn' : 
+                 toStringValue(firstColumnName).toLowerCase().includes('vol') ? 'Hot' : 'Viridis',
       type: 'density',
       title: `${firstColumnName} Density over Time`
     };

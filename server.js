@@ -2,6 +2,29 @@ import express from 'express';
 import cors from 'cors';
 import * as nodeq from './lib/node-q/index.cjs';
 
+// Helper function to safely convert KDB+ symbol objects to strings
+function toStringValue(value) {
+  if (value == null) return '';
+  
+  // Handle KDB+ symbol objects (from node-q)
+  if (typeof value === 'object' && value.constructor && value.constructor.name === 'Symbol') {
+    return value.toString();
+  }
+  
+  // Handle KDB+ symbol objects with __kdb_type
+  if (typeof value === 'object' && value !== null && value.__kdb_type === 'symbol') {
+    return value.value || value.toString();
+  }
+  
+  // Handle regular strings
+  if (typeof value === 'string') {
+    return value;
+  }
+  
+  // Convert other types to string
+  return String(value);
+}
+
 const app = express();
 const PORT = 3001;
 
@@ -117,7 +140,7 @@ const parseTableList = (result) => {
   // result should be an array of table names
   if (Array.isArray(result)) {
     return result.map(tableName => ({
-      name: tableName,
+      name: toStringValue(tableName), // Convert symbol objects to strings
       columns: [], // Will be populated when table is selected
       rowCount: 0   // Will be populated when table is selected
     }));
@@ -129,9 +152,12 @@ const parseTableList = (result) => {
 // Helper function to get table metadata
 const getTableMetadata = async (tableName) => {
   try {
+    // Ensure tableName is a string for query construction
+    const tableNameStr = toStringValue(tableName);
+    
     // Get column names by querying the table structure
     // Use cols command to get column names directly
-    const colsResult = await executeKdbQuery(`cols ${tableName}`);
+    const colsResult = await executeKdbQuery(`cols ${tableNameStr}`);
     let columns = [];
     
     if (Array.isArray(colsResult)) {
@@ -141,25 +167,25 @@ const getTableMetadata = async (tableName) => {
     }
     
     // Get row count
-    const countResult = await executeKdbQuery(`count ${tableName}`);
+    const countResult = await executeKdbQuery(`count ${tableNameStr}`);
     const rowCount = typeof countResult === 'number' ? countResult : 0;
     
-    console.log(`Table ${tableName} metadata:`, { columns, rowCount });
+    console.log(`Table ${tableNameStr} metadata:`, { columns, rowCount });
     return { columns, rowCount };
   } catch (error) {
-    console.warn(`Failed to get metadata for table ${tableName}:`, error.message);
+    console.warn(`Failed to get metadata for table ${tableNameStr}:`, error.message);
     // Fallback: try to get column names from a single row
     try {
-      const sampleResult = await executeKdbQuery(`1#${tableName}`);
+      const sampleResult = await executeKdbQuery(`1#${tableNameStr}`);
       if (Array.isArray(sampleResult) && sampleResult.length > 0 && typeof sampleResult[0] === 'object') {
         const columns = Object.keys(sampleResult[0]);
-        const countResult = await executeKdbQuery(`count ${tableName}`);
+        const countResult = await executeKdbQuery(`count ${tableNameStr}`);
         const rowCount = typeof countResult === 'number' ? countResult : 0;
-        console.log(`Table ${tableName} fallback metadata:`, { columns, rowCount });
+        console.log(`Table ${tableNameStr} fallback metadata:`, { columns, rowCount });
         return { columns, rowCount };
       }
     } catch (fallbackError) {
-      console.warn(`Fallback metadata failed for ${tableName}:`, fallbackError.message);
+      console.warn(`Fallback metadata failed for ${tableNameStr}:`, fallbackError.message);
     }
     return { columns: [], rowCount: 0 };
   }
@@ -435,6 +461,7 @@ app.get('/api/tables', async (req, res) => {
 // Get table data endpoint with improved pagination
 app.get('/api/tables/:tableName/data', async (req, res) => {
   const { tableName } = req.params;
+  const tableNameStr = toStringValue(tableName); // Ensure string for queries
   const { offset = 0, limit = 100 } = req.query;
   
   try {
@@ -458,9 +485,9 @@ app.get('/api/tables/:tableName/data', async (req, res) => {
     
     // Use KDB+ syntax for pagination
     // For better performance with large tables, use select statement
-    const query = `select from ${tableName} where i within (${offsetNum};${offsetNum + limitNum - 1})`;
+    const query = `select from ${tableNameStr} where i within (${offsetNum};${offsetNum + limitNum - 1})`;
     
-    console.log(`Fetching ${limitNum} rows from ${tableName} starting at offset ${offsetNum}`);
+    console.log(`Fetching ${limitNum} rows from ${tableNameStr} starting at offset ${offsetNum}`);
     const result = await executeKdbQuery(query);
     const formattedData = formatQueryResult(result);
     
@@ -477,11 +504,11 @@ app.get('/api/tables/:tableName/data', async (req, res) => {
     
     res.json(response);
   } catch (error) {
-    console.error(`Error fetching data from ${tableName}:`, error);
+    console.error(`Error fetching data from ${tableNameStr}:`, error);
     res.status(500).json({ 
       success: false, 
       error: error.message,
-      tableName: tableName
+      tableName: tableNameStr
     });
   }
 });

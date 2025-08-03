@@ -451,9 +451,9 @@ export function VirtualDataGrid({
     const calculatedWidth = Math.ceil(textWidth + headerOverhead);
     
     // Apply intelligent constraints:
-    // - Minimum: 80px (ensure usability)
+    // - Minimum: 100px (ensure usability, especially for single-char names like meta tables)
     // - Maximum: 300px (prevent extremely wide columns)
-    return Math.max(80, Math.min(300, calculatedWidth));
+    return Math.max(100, Math.min(300, calculatedWidth));
   };
 
   const columns = useMemo<ColumnDef<any>[]>(() => {
