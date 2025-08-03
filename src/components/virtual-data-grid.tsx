@@ -269,6 +269,46 @@ export function VirtualDataGrid({
   const totalDataRows = data?.data?.length || 0;
   const currentDisplayPage = clientSidePagination ? clientPage : currentPage;
 
+  // Smart time-only column detection utility
+  const isTimeOnlyColumn = (columnIndex: number): boolean => {
+    if (!data || !data.data || !data.columns) return false;
+    
+    const columnName = data.columns[columnIndex]?.toLowerCase();
+    const sampleSize = Math.min(20, data.data.length); // Check first 20 rows
+    const sampleData = data.data.slice(0, sampleSize);
+    
+    let stringCount = 0;
+    let timeOnlyPatternCount = 0;
+    
+    for (const row of sampleData) {
+      const value = row[columnIndex];
+      if (typeof value === 'string' && value.length >= 12) {
+        stringCount++;
+        
+        // Check if this looks like a KDB+ time-only serialization
+        // Pattern: starts with "2000-01-01T" AND doesn't vary in date part
+        if (value.startsWith('2000-01-01T')) {
+          timeOnlyPatternCount++;
+        }
+      }
+    }
+    
+    // Only consider it time-only if:
+    // 1. Column name suggests time-only (not timestamp/datetime)
+    // 2. ALL string values use the 2000-01-01 pattern (KDB+ time serialization)
+    // 3. Reasonable sample size
+    const hasTimeOnlyName = columnName && 
+      (columnName === 'time' || columnName === 't') && 
+      !columnName.includes('stamp') && 
+      !columnName.includes('date');
+    
+    const allValuesAreTimeOnly = stringCount > 0 && 
+      timeOnlyPatternCount === stringCount && 
+      stringCount >= Math.min(5, sampleSize);
+    
+    return hasTimeOnlyName && allValuesAreTimeOnly;
+  };
+
   const columns = useMemo<ColumnDef<any>[]>(() => {
     if (!data || !data.columns || columnOrder.length === 0) return [];
     
@@ -355,10 +395,15 @@ export function VirtualDataGrid({
             return value.toLocaleString();
           }
           if (typeof value === 'string') {
-            // Check if this is a time value from KDB+ (ISO string starting with 2000-01-01)
-            if (value.startsWith('2000-01-01T') && value.length >= 23) {
-              // Extract just the time portion HH:MM:SS.mmm
+            // Smart timestamp handling - only strip date for confirmed time-only columns
+            if (value.startsWith('2000-01-01T') && value.length >= 23 && isTimeOnlyColumn(index)) {
+              // Extract just the time portion HH:MM:SS.mmm for confirmed time-only columns
               return value.substring(11, 23);
+            }
+            // For actual timestamps, preserve full datetime display
+            if (value.startsWith('2000-01-01T') || value.match(/^\d{4}-\d{2}-\d{2}T/)) {
+              // Format timestamp for better readability: "2024-01-15 14:30:25.123"
+              return value.replace('T', ' ').replace('Z', '');
             }
             if (value.length > 50) {
               return (

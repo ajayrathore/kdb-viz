@@ -74,6 +74,46 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
            lowerColumn === 't';
   });
 
+  // Smart time-only column detection utility for charts
+  const isTimeOnlyColumn = (columnIndex: number): boolean => {
+    if (!data || !data.data || !data.columns) return false;
+    
+    const columnName = data.columns[columnIndex]?.toLowerCase();
+    const sampleSize = Math.min(20, data.data.length); // Check first 20 rows
+    const sampleData = data.data.slice(0, sampleSize);
+    
+    let stringCount = 0;
+    let timeOnlyPatternCount = 0;
+    
+    for (const row of sampleData) {
+      const value = row[columnIndex];
+      if (typeof value === 'string' && value.length >= 12) {
+        stringCount++;
+        
+        // Check if this looks like a KDB+ time-only serialization
+        // Pattern: starts with "2000-01-01T" AND doesn't vary in date part
+        if (value.startsWith('2000-01-01T')) {
+          timeOnlyPatternCount++;
+        }
+      }
+    }
+    
+    // Only consider it time-only if:
+    // 1. Column name suggests time-only (not timestamp/datetime)
+    // 2. ALL string values use the 2000-01-01 pattern (KDB+ time serialization)
+    // 3. Reasonable sample size
+    const hasTimeOnlyName = columnName && 
+      (columnName === 'time' || columnName === 't') && 
+      !columnName.includes('stamp') && 
+      !columnName.includes('date');
+    
+    const allValuesAreTimeOnly = stringCount > 0 && 
+      timeOnlyPatternCount === stringCount && 
+      stringCount >= Math.min(5, sampleSize);
+    
+    return hasTimeOnlyName && allValuesAreTimeOnly;
+  };
+
   // Set default columns when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -654,10 +694,19 @@ export function ChartModal({ isOpen, onClose, data }: ChartModalProps) {
         barmode: chartConfig.type === 'bar' ? 'group' : undefined
       };
 
-      // Time-specific axis configuration
+      // Time-specific axis configuration with smart formatting
       if (xIsTime) {
         layout.xaxis.type = 'date';
-        layout.xaxis.tickformat = '%H:%M:%S';
+        
+        // Smart tick format based on column type
+        if (isTimeOnlyColumn(xColumnIndex)) {
+          // For confirmed time-only columns, show just time
+          layout.xaxis.tickformat = '%H:%M:%S';
+        } else {
+          // For timestamp columns, show full datetime or let Plotly auto-format
+          // Use a more compact format that shows both date and time
+          layout.xaxis.tickformat = '%Y-%m-%d<br>%H:%M:%S';
+        }
       }
 
       // Plotly configuration
