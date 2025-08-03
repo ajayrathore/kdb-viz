@@ -1,6 +1,6 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, Code, FolderOpen, Plus, X, FileText, Download } from 'lucide-react';
+import { AlertCircle, Code, FolderOpen, Plus, X, FileText, Download, Loader2 } from 'lucide-react';
 import { KdbQueryResult } from '@/types/kdb';
 import { 
   loadMultipleFiles, 
@@ -147,6 +147,10 @@ export function QueryExecutorSimple({ onExecuteQuery, isExecuting, onCancelQuery
   const [error, setError] = useState<string | null>(null);
   const [currentQueryInfo, setCurrentQueryInfo] = useState<{index: number, total: number, selectedText?: string} | null>(null);
   
+  // Execution time tracking
+  const [executionStartTime, setExecutionStartTime] = useState<number | null>(null);
+  const [elapsedTime, setElapsedTime] = useState<string>('0.0s');
+  
   // File operation state
   
   // Textarea reference for selection handling
@@ -158,6 +162,34 @@ export function QueryExecutorSimple({ onExecuteQuery, isExecuting, onCancelQuery
   const activeTab = tabs.find(tab => tab.id === activeTabId);
   const query = activeTab?.query || '';
 
+  // Track execution time
+  useEffect(() => {
+    if (isExecuting) {
+      // Start tracking time
+      const startTime = Date.now();
+      setExecutionStartTime(startTime);
+      setElapsedTime('0.0s');
+      
+      // Update elapsed time every 100ms
+      const interval = setInterval(() => {
+        const elapsed = (Date.now() - startTime) / 1000;
+        setElapsedTime(`${elapsed.toFixed(1)}s`);
+      }, 100);
+      
+      return () => clearInterval(interval);
+    } else {
+      // Execution finished
+      if (executionStartTime) {
+        const finalElapsed = (Date.now() - executionStartTime) / 1000;
+        setElapsedTime(`${finalElapsed.toFixed(1)}s`);
+        // Keep the final time displayed for a moment
+        setTimeout(() => {
+          setExecutionStartTime(null);
+          setElapsedTime('0.0s');
+        }, 2000);
+      }
+    }
+  }, [isExecuting]);
 
   // Tab management functions
   const createNewTab = (name?: string, content?: string, filePath?: string, fileName?: string) => {
@@ -461,12 +493,12 @@ export function QueryExecutorSimple({ onExecuteQuery, isExecuting, onCancelQuery
 
 
   return (
-    <div className="query-executor-section px-1 py-0.5 h-full flex flex-col">
+    <div className={`query-executor-section px-1 py-0.5 h-full flex flex-col ${isExecuting ? 'query-executor-section-executing' : ''}`}>
       {/* Tab Headers */}
       <div className="flex items-center justify-between mb-0.5">
         <div className="flex items-center space-x-2">
-          <Code className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-medium">Query Executor</h3>
+          <Code className={`h-4 w-4 text-primary ${isExecuting ? 'animate-spin' : ''}`} />
+          <h3 className={`text-sm font-medium ${isExecuting ? 'query-executor-header-executing' : ''}`}>Query Executor</h3>
           {isExecuting && onCancelQuery && (
             <Button
               variant="destructive"
@@ -561,7 +593,7 @@ export function QueryExecutorSimple({ onExecuteQuery, isExecuting, onCancelQuery
       />
 
       <div className="flex-1 flex flex-col space-y-0.5">
-        <div className="flex-1">
+        <div className="flex-1 query-editor-wrapper">
           <textarea
             ref={textareaRef}
             value={query}
@@ -578,10 +610,19 @@ export function QueryExecutorSimple({ onExecuteQuery, isExecuting, onCancelQuery
             onDragOver={handleDragOverEvent}
             onDrop={handleDropEvent}
             placeholder="Enter your q query here... (Ctrl/Cmd + Enter to execute, Ctrl/Cmd + O to load file, Ctrl/Cmd + S to save, drag & drop .q files)"
-            className="query-editor w-full h-full px-3 py-2 rounded-md overflow-x-auto whitespace-pre focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-mono text-sm text-foreground transition-colors enhanced-scrollbar"
+            className={`query-editor w-full h-full px-3 py-2 rounded-md overflow-x-auto whitespace-pre focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-mono text-sm text-foreground transition-colors enhanced-scrollbar ${isExecuting ? 'query-editor-executing' : ''}`}
             disabled={isExecuting || !activeTab}
             style={{ resize: 'none', minHeight: '80px' }}
           />
+          {isExecuting && (
+            <div className="query-editor-overlay">
+              <div className="query-executing-content">
+                <Loader2 className="h-8 w-8 animate-spin text-white" />
+                <div className="query-executing-text">Executing query...</div>
+                <div className="query-executing-timer">{elapsedTime}</div>
+              </div>
+            </div>
+          )}
         </div>
 
         {error && (
@@ -592,7 +633,18 @@ export function QueryExecutorSimple({ onExecuteQuery, isExecuting, onCancelQuery
         )}
 
 
-        {currentQueryInfo && (
+        {/* Execution status bar */}
+        {isExecuting && executionStartTime && (
+          <div className="flex items-center justify-between text-xs bg-primary/10 p-2 rounded-md border border-primary/20">
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
+              <span className="text-primary font-medium">Executing query...</span>
+            </div>
+            <span className="text-primary font-mono">{elapsedTime}</span>
+          </div>
+        )}
+
+        {currentQueryInfo && !isExecuting && (
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <div className="flex items-center space-x-2">
               {currentQueryInfo.selectedText ? (
