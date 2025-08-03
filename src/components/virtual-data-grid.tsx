@@ -8,10 +8,11 @@ import {
   flexRender,
   SortingState,
   ColumnFiltersState,
+  RowSelectionState,
   type ColumnDef,
   ColumnResizeMode,
 } from '@tanstack/react-table';
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ChevronsUp, ChevronsDown, Search, Database, Loader2, BarChart3, Download, Settings, GripVertical, PanelLeft, Home, MoveDown } from 'lucide-react';
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ChevronsUp, ChevronsDown, Search, Database, Loader2, BarChart3, Download, Settings, GripVertical, PanelLeft, Home, MoveDown, Copy, CheckSquare, Square, CheckSquare2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ColumnManagementModal } from '@/components/column-management-modal';
@@ -52,6 +53,8 @@ export function VirtualDataGrid({
   const [clientPage, setClientPage] = useState(0);
   const [clientPageSize, setClientPageSize] = useState(10000);
   const [columnVisibility, setColumnVisibility] = useState({});
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [showSelectionColumn, setShowSelectionColumn] = useState(false);
   const [columnOrder, setColumnOrder] = useState<string[]>([]);
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
   const [dropdownDraggedColumn, setDropdownDraggedColumn] = useState<string | null>(null);
@@ -72,9 +75,10 @@ export function VirtualDataGrid({
   // Initialize column order when data changes
   React.useEffect(() => {
     if (data?.columns) {
-      setColumnOrder(['__row_number__', ...data.columns.map((_, index) => index.toString())]);
+      const baseColumns = ['__row_number__', ...data.columns.map((_, index) => index.toString())];
+      setColumnOrder(showSelectionColumn ? ['__select__', ...baseColumns] : baseColumns);
     }
-  }, [data]);
+  }, [data, showSelectionColumn]);
 
   // Dynamic height measurement for virtual scrolling
   useLayoutEffect(() => {
@@ -276,6 +280,72 @@ export function VirtualDataGrid({
     }
   };
 
+  const toggleSelectionColumn = () => {
+    setShowSelectionColumn(prev => {
+      if (prev) {
+        // Clear selections when hiding the column
+        setRowSelection({});
+      }
+      return !prev;
+    });
+  };
+
+  // Copy selected rows to clipboard
+  const copySelectedToClipboard = async () => {
+    const selectedRows = table.getSelectedRowModel().rows;
+    if (selectedRows.length === 0) return;
+
+    const visibleColumns = table.getVisibleLeafColumns()
+      .filter(col => col.id !== '__select__' && col.id !== '__row_number__');
+    
+    // Generate headers
+    const headers = visibleColumns.map(col => {
+      const header = col.columnDef.header;
+      return typeof header === 'string' ? header : data.columns[parseInt(col.id)];
+    });
+    
+    // Generate comma-separated content (CSV)
+    const csvContent = [
+      headers.join(','),
+      ...selectedRows.map(row => 
+        visibleColumns.map(col => {
+          const value = row.getValue(col.id);
+          if (value === null || value === undefined) return '';
+          const stringValue = String(value);
+          // Escape values containing commas, quotes, or newlines
+          return stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')
+            ? `"${stringValue.replace(/"/g, '""')}"` 
+            : stringValue;
+        }).join(',')
+      )
+    ].join('\n');
+    
+    try {
+      // Use modern Clipboard API if available
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(csvContent);
+      } else {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = csvContent;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      
+      // Clear selection after copy
+      setRowSelection({});
+      
+      // You could add a toast notification here if you have a toast system
+      console.log(`Copied ${selectedRows.length} rows to clipboard`);
+    } catch (err) {
+      console.error('Failed to copy to clipboard:', err);
+    }
+  };
+
   // CSV Export function
   const exportToCSV = () => {
     if (!data || !data.data.length) return;
@@ -372,7 +442,38 @@ export function VirtualDataGrid({
     const preciseWidth = Math.ceil(digits * characterWidthAt06rem + overhead);
     const rowNumberWidth = Math.max(45, Math.min(160, preciseWidth));
     
-    // Row number column (always first)
+    // Selection checkbox column
+    const selectionColumn: ColumnDef<any> = {
+      id: '__select__',
+      header: () => (
+        <div className="w-full h-full" />
+      ),
+      cell: ({ row }) => (
+        <div
+          onClick={row.getCanSelect() ? row.getToggleSelectedHandler() : undefined}
+          className={`w-full h-full flex items-center justify-center ${
+            row.getCanSelect() ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'
+          }`}
+          title={`Select row ${row.index + 1}`}
+        >
+          {row.getIsSelected() ? (
+            <CheckSquare2 className="h-5 w-5 text-primary" />
+          ) : (
+            <Square className="h-5 w-5 text-gray-400 hover:text-gray-300" />
+          )}
+        </div>
+      ),
+      size: 50,
+      minSize: 50,
+      maxSize: 50,
+      enableResizing: false,
+      enableSorting: false,
+      enableColumnFilter: false,
+      enableGlobalFilter: false,
+      enableHiding: false,
+    };
+
+    // Row number column (always second)
     const rowNumberColumn: ColumnDef<any> = {
       id: '__row_number__',
       header: () => (
@@ -401,7 +502,7 @@ export function VirtualDataGrid({
     };
     
     const dataColumns = columnOrder
-      .filter(colId => colId !== '__row_number__') // Exclude row number column
+      .filter(colId => colId !== '__row_number__' && colId !== '__select__') // Exclude special columns
       .map((colId) => {
         const index = parseInt(colId);
         const columnName = data.columns[index];
@@ -474,9 +575,11 @@ export function VirtualDataGrid({
       };
     });
     
-    // Return row number column first, followed by data columns
-    return [rowNumberColumn, ...dataColumns];
-  }, [data, columnOrder, enableColumnControls, draggedColumn, dragOverColumn, dropPosition, handleDragStart, handleDragOver, handleDragEnter, handleDragLeave, handleDrop, handleDragEnd, clientSidePagination, clientPage, clientPageSize, currentDisplayPage, pageSize, totalDataRows, totalRows]);
+    // Return columns based on whether selection is enabled
+    return showSelectionColumn 
+      ? [selectionColumn, rowNumberColumn, ...dataColumns]
+      : [rowNumberColumn, ...dataColumns];
+  }, [data, columnOrder, enableColumnControls, draggedColumn, dragOverColumn, dropPosition, handleDragStart, handleDragOver, handleDragEnter, handleDragLeave, handleDrop, handleDragEnd, clientSidePagination, clientPage, clientPageSize, currentDisplayPage, pageSize, totalDataRows, totalRows, showSelectionColumn]);
 
   const tableData = useMemo(() => {
     if (!data || !data.data) return [];
@@ -520,7 +623,10 @@ export function VirtualDataGrid({
       globalFilter,
       columnVisibility,
       columnOrder,
+      rowSelection,
     },
+    onRowSelectionChange: setRowSelection,
+    enableRowSelection: true,
   });
 
   // Virtual row model
@@ -607,6 +713,16 @@ export function VirtualDataGrid({
 
   // Keyboard event handler
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Handle copy shortcut
+    if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+      const selectedRows = table.getSelectedRowModel().rows;
+      if (selectedRows.length > 0) {
+        e.preventDefault();
+        copySelectedToClipboard();
+        return;
+      }
+    }
+    
     // Only handle navigation keys when the table container is focused
     switch (e.key) {
       case 'Home':
@@ -709,8 +825,19 @@ export function VirtualDataGrid({
                 )}
                 
                 {/* Navigation Controls */}
-                {hasData && rows.length > 10 && (
+                {hasData && (
                   <div className="flex items-center space-x-1 border-r border-border pr-2 mr-2">
+                    {/* Toggle Selection Mode Button */}
+                    <button
+                      onClick={toggleSelectionColumn}
+                      className={`nav-button p-1.5 rounded ${showSelectionColumn ? 'bg-primary/20 text-primary' : 'btn-financial-secondary'}`}
+                      title="Toggle selection mode"
+                    >
+                      <CheckSquare className="h-4 w-4" />
+                    </button>
+                    
+                    {rows.length > 10 && (
+                      <>
                     <button
                       onClick={scrollToTop}
                       disabled={isAtTop}
@@ -743,6 +870,22 @@ export function VirtualDataGrid({
                     >
                       <MoveDown className="h-4 w-4" />
                     </button>
+                      </>
+                    )}
+                    
+                    {/* Copy Selected Button - moved to navigation section */}
+                    {showSelectionColumn && Object.keys(rowSelection).length > 0 && (
+                      <button
+                        onClick={copySelectedToClipboard}
+                        className="nav-button btn-financial-secondary p-1.5 rounded relative"
+                        title={`Copy ${Object.keys(rowSelection).length} selected rows (Ctrl/Cmd+C)`}
+                      >
+                        <Copy className="h-4 w-4" />
+                        <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-4 w-4 flex items-center justify-center text-[10px]">
+                          {Object.keys(rowSelection).length}
+                        </span>
+                      </button>
+                    )}
                   </div>
                 )}
                 
@@ -877,8 +1020,8 @@ export function VirtualDataGrid({
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
-                  const isRowNumber = header.column.id === '__row_number__';
-                  const isDraggable = enableColumnControls && !isRowNumber;
+                  const isSpecialColumn = header.column.id === '__row_number__' || header.column.id === '__select__';
+                  const isDraggable = enableColumnControls && !isSpecialColumn;
                   const isBeingDragged = draggedColumn === header.column.id;
                   const isDropTarget = dragOverColumn === header.column.id;
                   
@@ -886,7 +1029,7 @@ export function VirtualDataGrid({
                   <th
                     key={header.id}
                     className={`data-table-cell relative text-left text-sm font-semibold text-foreground tracking-wider transition-all duration-200 ${
-                      isRowNumber ? 'row-number-header-cell' : ''
+                      header.column.id === '__row_number__' ? 'row-number-header-cell' : ''
                     } ${
                       isDraggable ? 'cursor-move' : ''
                     } ${
@@ -958,7 +1101,7 @@ export function VirtualDataGrid({
               return (
                 <tr
                   key={row.id}
-                  className="data-table-row transition-colors"
+                  className={`data-table-row transition-colors ${row.getIsSelected() ? 'bg-primary/10' : ''}`}
                   style={{ height: `${virtualRow.size}px` }}
                 >
                   {row.getVisibleCells().map((cell) => (

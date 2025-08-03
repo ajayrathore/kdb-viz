@@ -621,11 +621,18 @@
     margin-left: 0.25rem !important;
   }
   
-  /* Compact all icons in headers */
-  .data-table-header th svg {
+  /* Compact all icons in headers except checkboxes */
+  .data-table-header th svg:not(.lucide-square):not(.lucide-check-square-2) {
     height: 10px !important;
     width: 10px !important;
     flex-shrink: 0 !important;
+  }
+  
+  /* Allow checkbox icons to be their specified size */
+  .data-table-header th .lucide-square,
+  .data-table-header th .lucide-check-square-2 {
+    height: auto !important;
+    width: auto !important;
   }
   
   /* Ensure text spans don't add height */
@@ -962,13 +969,16 @@
     text-align: right !important;
     font-family: 'JetBrains Mono', 'SF Mono', 'Monaco', 'Menlo', monospace;
     font-variant-numeric: tabular-nums;
-    font-size: 0.6rem; /* Ultra-compact font size for maximum space efficiency */
+    font-size: 0.6rem;
     font-weight: 500;
-    line-height: 1.2; /* Tighter line height for compactness */
+    line-height: 1.2;
     color: hsl(var(--muted-foreground));
-    border-right: 2px solid hsl(var(--border-strong)) !important;
-    padding-left: 6px !important;
-    padding-right: 16px !important; /* Increased right padding to prevent cropping */
+    padding-right: 16px !important;
+  }
+  
+  /* Remove right border from td containing row number cells */
+  td:has(.row-number-cell) {
+    border-right: none !important;
   }
 }
 
