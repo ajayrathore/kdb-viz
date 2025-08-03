@@ -410,6 +410,64 @@
     transform: rotate(45deg) translateX(100%);
   }
   
+  /* 3D Cancel Button */
+  .cancel-button-3d {
+    position: relative;
+    background: linear-gradient(135deg, #dc2626 0%, #ef4444 50%, #f87171 100%);
+    box-shadow: 
+      0 4px 6px -1px rgba(220, 38, 38, 0.5),
+      0 2px 4px -1px rgba(239, 68, 68, 0.4),
+      0 0 0 1px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-style: preserve-3d;
+  }
+  
+  .cancel-button-3d:hover {
+    transform: translateY(-3px) rotateX(-10deg) scale(1.1);
+    box-shadow: 
+      0 12px 20px -5px rgba(220, 38, 38, 0.6),
+      0 8px 10px -3px rgba(239, 68, 68, 0.5),
+      0 0 0 1px rgba(0, 0, 0, 0.15);
+    filter: brightness(1.15);
+  }
+  
+  .cancel-button-3d:active {
+    transform: translateY(-1px) scale(0.98);
+    box-shadow: 
+      0 2px 4px -1px rgba(220, 38, 38, 0.4),
+      0 1px 2px -1px rgba(239, 68, 68, 0.3),
+      inset 0 2px 4px 0 rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Remove any inherited tooltips or pseudo-elements */
+  .cancel-button-3d::after,
+  .cancel-button-3d::before {
+    display: none !important;
+  }
+  
+  .cancel-button-3d:hover::after,
+  .cancel-button-3d:hover::before {
+    display: none !important;
+  }
+  
+  /* Override any potential white shadows from parent styles */
+  .cancel-button-3d,
+  .cancel-button-3d:hover,
+  .cancel-button-3d:focus,
+  .cancel-button-3d:focus-visible {
+    --tw-shadow: none !important;
+    --tw-ring-shadow: none !important;
+    outline: none !important;
+  }
+  
+  /* Ensure only our custom shadows are applied */
+  .cancel-button-3d:hover {
+    box-shadow: 
+      0 12px 20px -5px rgba(220, 38, 38, 0.6),
+      0 8px 10px -3px rgba(239, 68, 68, 0.5),
+      0 0 0 1px rgba(0, 0, 0, 0.15) !important;
+  }
+
   /* Ensure icons remain white on colored backgrounds */
   .icon-3d-chart svg,
   .icon-3d-export svg,

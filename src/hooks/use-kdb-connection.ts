@@ -75,12 +75,19 @@ export function useKdbConnection() {
     }
   }, []);
 
+  const cancelConnection = useCallback(() => {
+    if (serviceRef.current) {
+      serviceRef.current.cancelConnection();
+    }
+  }, []);
+
   return {
     status,
     error,
     tables,
     connect,
     disconnect,
+    cancelConnection,
     executeQuery,
     getTableData,
     refreshTables,

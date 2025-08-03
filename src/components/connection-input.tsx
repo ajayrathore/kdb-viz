@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, Plug, PlugZap, AlertCircle } from 'lucide-react';
+import { Loader2, Plug, PlugZap, AlertCircle, X } from 'lucide-react';
 import { ConnectionStatus } from '@/types/kdb';
 
 interface ConnectionInputProps {
@@ -11,6 +11,7 @@ interface ConnectionInputProps {
   browseTables: boolean;
   onConnect: (host: string, port: number, browseTables: boolean) => Promise<boolean>;
   onDisconnect: () => void;
+  onCancelConnection?: () => void;
   onBrowseTablesChange: (enabled: boolean) => void;
 }
 
@@ -21,6 +22,7 @@ export function ConnectionInput({
   browseTables,
   onConnect,
   onDisconnect,
+  onCancelConnection,
   onBrowseTablesChange,
 }: ConnectionInputProps) {
   const [hostPort, setHostPort] = useState('');
@@ -138,21 +140,33 @@ export function ConnectionInput({
             Disconnect
           </Button>
         ) : (
-          <Button
-            variant="default"
-            size="sm"
-            onClick={handleConnect}
-            disabled={isConnecting || !hostPort.trim()}
-          >
-            {isConnecting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Connecting...
-              </>
-            ) : (
-              'Connect'
+          <>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleConnect}
+              disabled={isConnecting || !hostPort.trim()}
+            >
+              {isConnecting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Connecting...
+                </>
+              ) : (
+                'Connect'
+              )}
+            </Button>
+            {isConnecting && onCancelConnection && (
+              <Button
+                variant="destructive"
+                size="icon"
+                onClick={onCancelConnection}
+                className="h-8 w-8 rounded-full cancel-button-3d"
+              >
+                <X className="h-4 w-4" />
+              </Button>
             )}
-          </Button>
+          </>
         )}
       </div>
 

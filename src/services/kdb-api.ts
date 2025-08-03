@@ -5,6 +5,7 @@ const API_BASE_URL = 'http://localhost:3001/api';
 export class KdbApiService {
   private connectionStatus: ConnectionStatus = 'disconnected';
   private eventListeners: Map<string, Function[]> = new Map();
+  private abortController: AbortController | null = null;
 
   constructor() {
     this.addEventListener = this.addEventListener.bind(this);
@@ -14,6 +15,14 @@ export class KdbApiService {
 
   async connect(host: string, port: number): Promise<boolean> {
     try {
+      // Cancel any existing connection attempt
+      if (this.abortController) {
+        this.abortController.abort();
+      }
+
+      // Create new AbortController for this connection attempt
+      this.abortController = new AbortController();
+
       this.connectionStatus = 'connecting';
       this.emit('statusChange', this.connectionStatus);
 
@@ -23,6 +32,7 @@ export class KdbApiService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ host, port }),
+        signal: this.abortController.signal,
       });
 
       const result = await response.json();
@@ -30,17 +40,26 @@ export class KdbApiService {
       if (result.success) {
         this.connectionStatus = 'connected';
         this.emit('statusChange', this.connectionStatus);
+        this.abortController = null;
         return true;
       } else {
         this.connectionStatus = 'error';
         this.emit('statusChange', this.connectionStatus);
         this.emit('error', result.error || 'Connection failed');
+        this.abortController = null;
         return false;
       }
     } catch (error) {
-      this.connectionStatus = 'error';
-      this.emit('statusChange', this.connectionStatus);
-      this.emit('error', `Connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      if (error instanceof Error && error.name === 'AbortError') {
+        this.connectionStatus = 'disconnected';
+        this.emit('statusChange', this.connectionStatus);
+        this.emit('error', 'Connection cancelled');
+      } else {
+        this.connectionStatus = 'error';
+        this.emit('statusChange', this.connectionStatus);
+        this.emit('error', `Connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+      this.abortController = null;
       return false;
     }
   }
@@ -48,6 +67,13 @@ export class KdbApiService {
   disconnect(): void {
     this.connectionStatus = 'disconnected';
     this.emit('statusChange', this.connectionStatus);
+  }
+
+  cancelConnection(): void {
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
+    }
   }
 
   async executeQuery(query: string): Promise<KdbQueryResult> {

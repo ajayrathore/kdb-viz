@@ -16,6 +16,7 @@ interface DashboardPageProps {
   tables: KdbTable[];
   onConnect: (host: string, port: number, browseTables: boolean) => Promise<boolean>;
   onDisconnect: () => void;
+  onCancelConnection: () => void;
   executeQuery: (query: string) => Promise<KdbQueryResult>;
   getTableData: (tableName: string, offset: number, limit: number) => Promise<KdbQueryResult>;
   refreshTables: () => Promise<void>;
@@ -28,6 +29,7 @@ export function DashboardPage({
   tables,
   onConnect,
   onDisconnect,
+  onCancelConnection,
   executeQuery,
   getTableData,
   refreshTables,
@@ -199,6 +201,7 @@ export function DashboardPage({
               browseTables={browseTables}
               onConnect={onConnect}
               onDisconnect={onDisconnect}
+              onCancelConnection={onCancelConnection}
               onBrowseTablesChange={setBrowseTables}
             />
           </div>
