@@ -386,10 +386,11 @@ export function VirtualDataGrid({
       enableColumnFilter: false,
       enableGlobalFilter: false,
       enableHiding: false,
-      cell: ({ row }) => {
-        // For static row numbers, use the original dataset position
-        const originalIndex = row.original._originalRowIndex;
-        const rowNumber = originalIndex + 1; // Simple 1-based numbering from original dataset
+      cell: ({ row, table }) => {
+        // Get the visible rows to find the display position
+        const visibleRows = table.getRowModel().rows;
+        const displayIndex = visibleRows.findIndex(r => r.id === row.id);
+        const rowNumber = displayIndex + 1;
         
         return (
           <div className="row-number-cell" title={`Row ${rowNumber}`}>
